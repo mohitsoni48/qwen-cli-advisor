@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.specify/scripts/powershell/create-new-feature.ps1 *)",
+      "WebFetch(chatgpt.com)"
+    ]
+  },
+  "$version": 3
+}
