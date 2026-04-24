@@ -34,7 +34,7 @@ Use SharedFlow for events that should be consumed once (e.g. navigation, toasts)
 ## Prerequisites
 
 - [Qwen CLI](https://github.com/QwenLM/qwen-code) installed
-- `@playwright/mcp` configured in Qwen CLI's `settings.json`
+- Node.js 18+
 - Google Chrome installed
 - An account on at least one of: ChatGPT, Claude, Kimi, Qwen
 
@@ -42,38 +42,53 @@ Use SharedFlow for events that should be consumed once (e.g. navigation, toasts)
 
 ## Installation
 
-### 1. Copy the command files
+Clone the repo and run the installer — it handles everything automatically:
 
-Copy all files from `.qwen/commands/` into your project's `.qwen/commands/` folder (or your global `~/.qwen/commands/`):
+```bash
+git clone https://github.com/mohitsoni48/qwen-cli-advisor.git
+cd qwen-cli-advisor
+node install.mjs
+```
 
+The installer will:
+- Install all 9 MCP packages globally (`filesystem`, `sequential-thinking`, `memory`, `context7`, `web-search`, `browser`, `sqlite`, `github`, `code-runner`)
+- Copy `/advisor`, `/advisor.select`, `/advisor.setup` commands to `~/.qwen/commands/`
+- Copy `advisor-runner.js` and `advisor-context.md` to `~/.qwen/`
+- Merge MCP config into `~/.qwen/settings.json` (backs up your existing file first)
+- Write `~/.qwen/QWEN.md` from template, or AI-merge with your existing one if you already have it
+
+You'll be prompted for an optional Tavily API key (for the `web-search` MCP) and GitHub token (for the `github` MCP). Both can be skipped and added later.
+
+> **QWEN.md merge:** If you already have a `~/.qwen/QWEN.md`, the installer calls a local OpenAI-compatible endpoint (e.g. LM Studio at `localhost:1234`) to intelligently merge it with the advisor template. You can point it at any OpenAI-compatible API. If the AI call fails, it falls back to appending the advisor section.
+
+---
+
+### Manual installation (optional)
+
+If you prefer to install manually instead of running the script:
+
+<details>
+<summary>Show manual steps</summary>
+
+**1. Install the browser MCP** (required for advisor):
+```bash
+npm install -g @playwright/mcp
+```
+
+**2. Copy command files** to `~/.qwen/commands/`:
 ```
 .qwen/commands/advisor.select.md
 .qwen/commands/advisor.setup.md
 .qwen/commands/advisor.md
 ```
 
-### 2. Copy the runner script
-
-Copy `advisor-runner.js` to your global Qwen config directory:
-
+**3. Copy support files** to `~/.qwen/`:
 ```
-~/.qwen/advisor-runner.js
+advisor-runner.js
+advisor-context.md
 ```
 
-On Windows: `C:\Users\<you>\.qwen\advisor-runner.js`
-
-### 3. Copy the advisor context
-
-Copy `advisor-context.md` to your global Qwen config directory:
-
-```
-~/.qwen/advisor-context.md
-```
-
-### 4. Configure the browser MCP
-
-In your `~/.qwen/settings.json`, configure the `browser` MCP to use a **persistent Chrome profile** (not headless):
-
+**4. Configure the browser MCP** in `~/.qwen/settings.json`:
 ```json
 "browser": {
   "command": "node",
@@ -86,15 +101,14 @@ In your `~/.qwen/settings.json`, configure the `browser` MCP to use a **persiste
 }
 ```
 
-> **Why not headless?** ChatGPT uses Cloudflare bot detection. A fresh headless browser gets blocked. Headed Chrome with a persistent profile passes Cloudflare on first launch, then the session cookies handle all subsequent visits. All advisors share this profile — cookies are domain-scoped so they don't interfere with each other.
+> **Why not headless?** ChatGPT uses Cloudflare bot detection. A fresh headless browser gets blocked. Headed Chrome with a persistent profile passes Cloudflare on first launch, then session cookies handle all subsequent visits. All advisors share this profile — cookies are domain-scoped so they don't interfere with each other.
 
-### 5. Allow the runner in permissions
-
-Add to the `permissions.allow` array in `~/.qwen/settings.json`:
-
+**5. Add permission** to `~/.qwen/settings.json`:
 ```json
 "Bash(node *)"
 ```
+
+</details>
 
 ---
 

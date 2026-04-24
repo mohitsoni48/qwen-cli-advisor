@@ -1,0 +1,23 @@
+# Playwright trace files
+.playwright-mcp/
+
+# OMC internal state
+.omc/
+
+# Screenshots and test images
+*.png
+*.jpg
+*.jpeg
+
+# Databases
+*.db
+
+# Backup files
+*.orig
+*.bak
+
+# Node
+node_modules/
+
+# Specify local config (contains local paths)
+.specify/init-options.json
