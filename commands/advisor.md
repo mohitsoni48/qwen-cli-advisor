@@ -23,9 +23,19 @@ Get a second opinion from whichever AI advisor is currently active.
 
 ## Steps
 
+### 0. Resolve paths
+
+Determine the user's `.qwen` directory:
+- **Windows:** run `Bash(echo %USERPROFILE%)`, then append `\.qwen\`
+- **macOS/Linux:** run `Bash(echo $HOME)`, then append `/.qwen/`
+
+Let `QWEN_DIR` = that resolved path. Use it for all file operations below.
+
+---
+
 ### 1. Read active advisor
 
-Use `filesystem.read_file` to read `C:\Users\Owner\.qwen\advisor-active`.
+Use `filesystem.read_file` to read `{QWEN_DIR}advisor-active`.
 
 - **If missing or empty:** respond:
   > "No advisor selected. Run `/advisor.select` to choose one (chatgpt, claude, kimi, qwen)."
@@ -38,7 +48,7 @@ Let `ADVISOR_NAME` = the file contents (trimmed). Let `DISPLAY_NAME` = the displ
 
 ### 2. Validate prerequisites
 
-Use `filesystem.read_file` to check if `C:\Users\Owner\.qwen\advisor-ready-<ADVISOR_NAME>` exists.
+Use `filesystem.read_file` to check if `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` exists.
 
 - **If missing:** respond:
   > "**\<DISPLAY_NAME\>** is not set up yet. Run `/advisor.setup` to log in."
@@ -57,7 +67,7 @@ Then stop.
 Execute the following shell command, replacing `<ADVISOR_NAME>` and `<question>` with the actual values:
 
 ```
-node "C:\Users\Owner\.qwen\advisor-runner.js" "<ADVISOR_NAME>" "<question>"
+node "{QWEN_DIR}advisor-runner.js" "<ADVISOR_NAME>" "<question>"
 ```
 
 - Chrome starts minimized — the user will not see it take focus
@@ -82,7 +92,7 @@ Say "show advisor response" to load the full reply.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-If the user then says "show advisor response" or "show full response", use `filesystem.read_file` to read `C:\Users\Owner\.qwen\advisor-last-response.md` and display its contents.
+If the user then says "show advisor response" or "show full response", use `filesystem.read_file` to read `{QWEN_DIR}advisor-last-response.md` and display its contents.
 
 ---
 

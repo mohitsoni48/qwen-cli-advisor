@@ -10,7 +10,7 @@ $ARGUMENTS
 
 ## Goal
 
-Let the user pick which AI acts as their advisor. The choice is saved to `C:\Users\Owner\.qwen\advisor-active` and read by `/advisor` on every call.
+Let the user pick which AI acts as their advisor. The choice is saved to `advisor-active` in the `.qwen` folder of the user's home directory and read by `/advisor` on every call.
 
 ## Available Advisors
 
@@ -22,6 +22,16 @@ Let the user pick which AI acts as their advisor. The choice is saved to `C:\Use
 | 4 | qwen | Qwen (Alibaba) |
 
 ## Steps
+
+### 0. Resolve paths
+
+Determine the user's `.qwen` directory:
+- **Windows:** run `Bash(echo %USERPROFILE%)`, then append `\.qwen\`
+- **macOS/Linux:** run `Bash(echo $HOME)`, then append `/.qwen/`
+
+Let `QWEN_DIR` = that resolved path. Use it for all file operations below.
+
+---
 
 ### 1. Parse selection
 
@@ -59,7 +69,7 @@ Then stop.
 Use `filesystem.write_file` to write the advisor name (e.g. `claude`) to:
 
 ```
-C:\Users\Owner\.qwen\advisor-active
+{QWEN_DIR}advisor-active
 ```
 
 ---
@@ -69,7 +79,7 @@ C:\Users\Owner\.qwen\advisor-active
 Use `filesystem.read_file` to check if the following file exists:
 
 ```
-C:\Users\Owner\.qwen\advisor-ready-<name>
+{QWEN_DIR}advisor-ready-<name>
 ```
 
 **If it exists** — advisor is already authenticated. Respond:

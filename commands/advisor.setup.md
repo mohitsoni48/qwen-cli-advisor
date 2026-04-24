@@ -21,9 +21,19 @@ Authenticate the currently-selected advisor and mark it as ready for use.
 
 ## Steps
 
+### 0. Resolve paths
+
+Determine the user's `.qwen` directory:
+- **Windows:** run `Bash(echo %USERPROFILE%)`, then append `\.qwen\`
+- **macOS/Linux:** run `Bash(echo $HOME)`, then append `/.qwen/`
+
+Let `QWEN_DIR` = that resolved path. Use it for all file operations below.
+
+---
+
 ### 1. Read active advisor
 
-Use `filesystem.read_file` to read `C:\Users\Owner\.qwen\advisor-active`.
+Use `filesystem.read_file` to read `{QWEN_DIR}advisor-active`.
 
 - **If the file is missing or empty:** respond:
   > "No advisor selected. Run `/advisor.select` first to choose one."
@@ -36,7 +46,7 @@ Let `ADVISOR_NAME` = the file contents (trimmed, lowercase). Let `ADVISOR_URL` =
 
 ### 2. Check if already set up
 
-Use `filesystem.read_file` to check if `C:\Users\Owner\.qwen\advisor-ready-<ADVISOR_NAME>` exists.
+Use `filesystem.read_file` to check if `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` exists.
 
 - **If it exists:** respond:
   > "**\<ADVISOR_NAME\>** is already set up. Run `/advisor <question>` to start."
@@ -45,14 +55,23 @@ Use `filesystem.read_file` to check if `C:\Users\Owner\.qwen\advisor-ready-<ADVI
 
 ---
 
-### 3. Verify runner script
+### 3. Ensure runner script is available
 
-Use `filesystem.read_file` to check if `C:\Users\Owner\.qwen\advisor-runner.js` exists.
+Check if `{QWEN_DIR}advisor-runner.js` exists using `filesystem.read_file`.
 
-- **If missing:** respond:
-  > "The advisor runner script is missing. Copy `advisor-runner.js` to `C:\Users\Owner\.qwen\`."
+**If missing**, look for it in the extension directory. Try these locations in order:
+1. `{QWEN_DIR}extensions/advisor/advisor-runner.js`
+2. `{QWEN_DIR}extensions/advisor-extension/advisor-runner.js`
 
-  Then stop.
+If found in an extension directory, copy it to `{QWEN_DIR}advisor-runner.js` using:
+```
+Bash(node -e "require('fs').copyFileSync('<source>', '<dest>')")
+```
+
+If not found anywhere, respond:
+> "The advisor runner script is missing. Run `node install.mjs` from the advisor repo to complete setup."
+
+Then stop.
 
 ---
 
@@ -92,20 +111,20 @@ Then stop.
 Use `filesystem.write_file` to write `ready` to:
 
 ```
-C:\Users\Owner\.qwen\advisor-ready-<ADVISOR_NAME>
+{QWEN_DIR}advisor-ready-{ADVISOR_NAME}
 ```
 
 ---
 
 ### 7. Inject advisor guidance into QWEN.md (first setup only)
 
-Use `filesystem.read_file` to read `C:\Users\Owner\.qwen\QWEN.md`.
+Use `filesystem.read_file` to read `{QWEN_DIR}QWEN.md`.
 
 Search for `## Advisor` in the content.
 
 - **If found:** skip this step (already injected).
 - **If not found:**
-  1. Read `C:\Users\Owner\.qwen\advisor-context.md`
+  1. Read `{QWEN_DIR}advisor-context.md`
   2. Append its contents to QWEN.md with a blank line separator before it
   3. Also append these rows to the Slash Commands table in QWEN.md:
      ```

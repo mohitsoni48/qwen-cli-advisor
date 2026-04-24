@@ -180,24 +180,11 @@ async function main() {
   }
   ok('directory structure');
 
-  // ── 6. Copy and patch command files ──────────────────────────────────────
-  // Command files hard-code C:\Users\Owner\.qwen\ — replace with actual path.
-  const OLD_WIN_PATH = 'C:\\Users\\Owner\\.qwen\\';
-  const newQwenPath  = QWEN_DIR + (IS_WIN ? '\\' : '/');
-
+  // ── 6. Copy command files ─────────────────────────────────────────────────
+  // Commands use dynamic path resolution ({QWEN_DIR} placeholder) — no patching needed.
   for (const file of ['advisor.md', 'advisor.select.md', 'advisor.setup.md']) {
-    const src = join(__dirname, '.qwen', 'commands', file);
-    let content = readFileSync(src, 'utf8');
-
-    // Replace hardcoded owner path
-    content = content.split(OLD_WIN_PATH).join(newQwenPath);
-
-    // On non-Windows, also fix remaining backslashes in paths
-    if (!IS_WIN) {
-      content = content.replace(/C:\\Users\\[^\\]+\\/g, `${HOME}/`);
-    }
-
-    writeFileSync(join(COMMANDS_DIR, file), content);
+    const src = join(__dirname, 'commands', file);
+    copyFileSync(src, join(COMMANDS_DIR, file));
     ok(`commands/${file}`);
   }
 
@@ -322,6 +309,16 @@ async function main() {
         ok('Advisor section already present — no changes needed');
       }
     }
+  }
+
+  // ── 10. Register extension ────────────────────────────────────────────────
+  log('Registering advisor extension...');
+  try {
+    run('qwen extensions install .', true);
+    ok('advisor extension registered');
+  } catch {
+    warn('Could not auto-register extension (qwen CLI not found or already registered).');
+    warn('Run manually: qwen extensions install .');
   }
 
   log();

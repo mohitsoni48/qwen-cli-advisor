@@ -1,0 +1,7 @@
+{
+  "name": "advisor",
+  "version": "1.0.0",
+  "description": "Get a second opinion from ChatGPT, Claude, Kimi, or Qwen without leaving your session",
+  "commands": "commands",
+  "contextFileName": "QWEN.md"
+}
