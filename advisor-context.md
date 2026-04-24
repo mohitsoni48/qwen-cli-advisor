@@ -1,6 +1,6 @@
-## Advisor — ChatGPT Second Opinion
+## Advisor — AI Second Opinion
 
-You have access to `/advisor <question>` — a ChatGPT session running silently in the background. Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
+You have access to `/advisor <question>` — a second AI running silently in the background (ChatGPT, Claude, Kimi, or Qwen — whichever you selected). Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
 
 ### When to call `/advisor`
 
@@ -30,7 +30,7 @@ Always include three things in the question:
 
 1. **Context** — what you are building, what app, what layer (e.g. "In the Scout Android app, I am implementing a ViewModel that fetches ride history from Room and live GPS from a Service")
 2. **The decision or problem** — what you are stuck on or about to decide (e.g. "Should I use SharedFlow or StateFlow to expose the combined stream to the UI?")
-3. **Your current thinking** — your preferred approach and why, so ChatGPT can validate or correct it
+3. **Your current thinking** — your preferred approach and why, so the advisor can validate or correct it
 
 **Example calls:**
 ```
@@ -41,6 +41,19 @@ Always include three things in the question:
 /advisor I have a Cloudflare 403 from a Playwright browser navigating to chatgpt.com. I've tried adding headers and rotating user agents. The next option I see is switching to a persistent Chrome profile with --browser chrome. Is there a better approach I'm missing?
 ```
 
-### Setup
+### Commands
 
-Run `/advisor.setup` once before first use. It opens a ChatGPT login window — after that, all `/advisor` calls run silently in the background.
+| Command | Purpose |
+|---------|---------|
+| `/advisor.select` | Choose your active advisor (chatgpt, claude, kimi, qwen) |
+| `/advisor.setup` | One-time login for the selected advisor — run after selecting |
+| `/advisor <question>` | Consult the active advisor silently in the background |
+
+### Setup (first time)
+
+1. Run `/advisor.select <name>` to choose your advisor
+2. Run `/advisor.setup` — Chrome opens so you can log in
+3. Once logged in, run `/advisor.setup` again to confirm
+4. Run `/advisor <question>` — Chrome opens minimized and closes when done
+
+To switch advisors later: run `/advisor.select <name>` then `/advisor.setup` if not yet logged in.

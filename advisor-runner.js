@@ -5,17 +5,107 @@ const { chromium } = require(
   'C:/Users/Owner/AppData/Roaming/npm/node_modules/@playwright/mcp/node_modules/playwright-core'
 );
 
-const USER_DATA_DIR = path.join('C:', 'Users', 'Owner', '.qwen', 'playwright-profile');
+const QWEN_DIR = path.join('C:', 'Users', 'Owner', '.qwen');
+// All advisors share one profile — setup browser (browser MCP) also uses this
+// profile, so logins from /advisor.setup carry through to the runner.
+const SHARED_PROFILE = path.join(QWEN_DIR, 'playwright-profile');
 const TIMEOUT_MS = 90000;
 
-const question = process.argv.slice(2).join(' ').trim();
-if (!question) {
-  process.stderr.write('Usage: node advisor-runner.js <question>\n');
+const ADVISORS = {
+  chatgpt: {
+    displayName: 'ChatGPT',
+    url: 'https://chatgpt.com/?temporary-chat=true',
+    inputSelectors: [
+      '#prompt-textarea',
+      '[data-id="prompt-textarea"]',
+      'div[contenteditable="true"][aria-label]',
+      'div[contenteditable="true"]',
+    ],
+    stopSelector: '[data-testid="stop-button"], button[aria-label*="Stop"]',
+    responseSelectors: ['[data-message-author-role="assistant"]'],
+  },
+  claude: {
+    displayName: 'Claude',
+    // /new always starts a fresh conversation
+    url: 'https://claude.ai/new',
+    inputSelectors: [
+      'div.ProseMirror[contenteditable="true"]',
+      'div[contenteditable="true"][aria-label]',
+      'div[contenteditable="true"]',
+      'textarea',
+    ],
+    stopSelector: [
+      'button[aria-label="Stop Response"]',
+      'button[aria-label*="Stop"]',
+      '[data-testid*="stop"]',
+    ].join(', '),
+    responseSelectors: [
+      '.font-claude-message',
+      '[data-testid="conversation-turn-content"]',
+      '[class*="message"] [class*="prose"]',
+      'article',
+    ],
+  },
+  kimi: {
+    displayName: 'Kimi',
+    url: 'https://www.kimi.com/',
+    inputSelectors: [
+      'textarea[placeholder*="Ask"]',
+      'textarea[placeholder*="ask"]',
+      'textarea',
+      'div[contenteditable="true"]',
+    ],
+    stopSelector: [
+      '[class*="stop"]',
+      'button[aria-label*="Stop"]',
+      '[data-testid*="stop"]',
+    ].join(', '),
+    responseSelectors: [
+      '[class*="segment-content"]',
+      '[class*="message-content"]',
+      '[class*="answer-text"]',
+      '[class*="chat-message"]',
+    ],
+  },
+  qwen: {
+    displayName: 'Qwen',
+    url: 'https://chat.qwen.ai/',
+    inputSelectors: [
+      'textarea',
+      'div[contenteditable="true"]',
+    ],
+    stopSelector: [
+      '[class*="stop"]',
+      'button[aria-label*="Stop"]',
+      '[data-testid*="stop"]',
+    ].join(', '),
+    responseSelectors: [
+      '[class*="markdown-body"]',
+      '[class*="message-content"]',
+      '[data-role="assistant"]',
+      '[class*="assistant"] [class*="content"]',
+    ],
+  },
+};
+
+const advisorName = process.argv[2];
+const question = process.argv.slice(3).join(' ').trim();
+
+if (!advisorName || !ADVISORS[advisorName]) {
+  const names = Object.keys(ADVISORS).join(', ');
+  process.stderr.write(`Usage: node advisor-runner.js <advisor> <question>\nAvailable advisors: ${names}\n`);
   process.exit(1);
 }
 
+if (!question) {
+  process.stderr.write(`Usage: node advisor-runner.js ${advisorName} <question>\n`);
+  process.exit(1);
+}
+
+const config = ADVISORS[advisorName];
+
 (async () => {
-  const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
+  const context = await chromium.launchPersistentContext(SHARED_PROFILE, {
     channel: 'chrome',
     headless: false,
     args: ['--start-minimized'],
@@ -24,21 +114,14 @@ if (!question) {
   try {
     const page = context.pages()[0] ?? await context.newPage();
 
-    await page.goto('https://chatgpt.com/?temporary-chat=true', {
+    await page.goto(config.url, {
       waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
 
-    // Find input box — try known selectors in order
-    const inputSelectors = [
-      '#prompt-textarea',
-      '[data-id="prompt-textarea"]',
-      'div[contenteditable="true"][aria-label]',
-      'div[contenteditable="true"]',
-    ];
-
+    // Find the chat input box
     let inputEl = null;
-    for (const sel of inputSelectors) {
+    for (const sel of config.inputSelectors) {
       try {
         await page.waitForSelector(sel, { timeout: 5000 });
         inputEl = page.locator(sel).first();
@@ -47,13 +130,15 @@ if (!question) {
     }
 
     if (!inputEl) {
-      process.stderr.write('ERROR: Could not find ChatGPT input. Run /advisor.setup to re-authenticate.\n');
+      process.stderr.write(
+        `ERROR: Could not find ${config.displayName} input. ` +
+        `Run /advisor.select ${advisorName} then /advisor.setup to re-authenticate.\n`
+      );
       process.exit(1);
     }
 
     await inputEl.click();
 
-    // Use type() for contenteditable divs, fill() for textarea
     const tagName = await inputEl.evaluate(el => el.tagName.toLowerCase());
     if (tagName === 'textarea') {
       await inputEl.fill(question);
@@ -63,26 +148,28 @@ if (!question) {
 
     await page.keyboard.press('Enter');
 
-    // Wait for response to start (stop button appears)
-    const stopSelector = '[data-testid="stop-button"], button[aria-label*="Stop"]';
-    await page.waitForSelector(stopSelector, { timeout: 15000 }).catch(() => {});
+    // Wait for response to start (stop button appears), then finish (disappears)
+    await page.waitForSelector(config.stopSelector, { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector(config.stopSelector, { state: 'hidden', timeout: TIMEOUT_MS }).catch(() => {});
 
-    // Wait for response to finish (stop button disappears)
-    await page.waitForSelector(stopSelector, { state: 'hidden', timeout: TIMEOUT_MS }).catch(() => {});
-
-    // Small settle delay
     await page.waitForTimeout(800);
 
-    // Extract last assistant message
-    const messages = page.locator('[data-message-author-role="assistant"]');
-    const count = await messages.count();
+    // Extract the last assistant response
+    let text = null;
+    for (const sel of config.responseSelectors) {
+      const els = page.locator(sel);
+      const count = await els.count();
+      if (count > 0) {
+        text = await els.nth(count - 1).innerText();
+        break;
+      }
+    }
 
-    if (count === 0) {
-      process.stderr.write('ERROR: No response received from ChatGPT.\n');
+    if (!text) {
+      process.stderr.write(`ERROR: No response received from ${config.displayName}.\n`);
       process.exit(1);
     }
 
-    const text = await messages.nth(count - 1).innerText();
     process.stdout.write(text.trim() + '\n');
 
   } finally {
