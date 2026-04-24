@@ -61,7 +61,7 @@ node "C:\Users\Owner\.qwen\advisor-runner.js" "<ADVISOR_NAME>" "<question>"
 ```
 
 - Chrome starts minimized — the user will not see it take focus
-- The script navigates to a fresh chat, submits the question, waits for the full response, and prints it to stdout
+- The script navigates to a fresh chat, submits the question, waits for the full response, saves it to disk, and prints a short confirmation + preview to stdout
 - Capture stdout as `ADVISOR_RESPONSE`
 - If the command exits with a non-zero code, capture stderr and report the error
 
@@ -69,17 +69,20 @@ node "C:\Users\Owner\.qwen\advisor-runner.js" "<ADVISOR_NAME>" "<question>"
 
 ### 4. Present the response
 
+Present exactly what the script printed to stdout — the confirmation line, preview, and file path. Do NOT read the response file and do NOT echo or expand the full response into the conversation. This keeps the full response out of the main chat context.
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  <DISPLAY_NAME> says:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[ADVISOR_RESPONSE]
+[ADVISOR_RESPONSE — the confirmation + preview lines, verbatim]
 
+Say "show advisor response" to load the full reply.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Return the response verbatim. Do not summarise or add commentary.
+If the user then says "show advisor response" or "show full response", use `filesystem.read_file` to read `C:\Users\Owner\.qwen\advisor-last-response.md` and display its contents.
 
 ---
 

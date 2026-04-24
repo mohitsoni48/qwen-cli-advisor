@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const { chromium } = require(
   'C:/Users/Owner/AppData/Roaming/npm/node_modules/@playwright/mcp/node_modules/playwright-core'
 );
@@ -9,6 +10,7 @@ const QWEN_DIR = path.join('C:', 'Users', 'Owner', '.qwen');
 // All advisors share one profile — setup browser (browser MCP) also uses this
 // profile, so logins from /advisor.setup carry through to the runner.
 const SHARED_PROFILE = path.join(QWEN_DIR, 'playwright-profile');
+const RESPONSE_FILE = path.join(QWEN_DIR, 'advisor-last-response.md');
 const TIMEOUT_MS = 90000;
 
 const ADVISORS = {
@@ -170,7 +172,23 @@ const config = ADVISORS[advisorName];
       process.exit(1);
     }
 
-    process.stdout.write(text.trim() + '\n');
+    const response = text.trim();
+
+    // Write full response to file — keeps it out of the main chat context.
+    fs.writeFileSync(RESPONSE_FILE, response, 'utf8');
+
+    // Output only a brief preview to stdout so the caller can confirm relevance
+    // without injecting the full response into the conversation context.
+    const PREVIEW_LEN = 200;
+    const preview = response.length > PREVIEW_LEN
+      ? response.slice(0, PREVIEW_LEN).trimEnd() + '…'
+      : response;
+
+    process.stdout.write(
+      `✓ ${config.displayName} responded (${response.length} chars)\n\n` +
+      `Preview: ${preview}\n\n` +
+      `Full response saved to: ${RESPONSE_FILE}\n`
+    );
 
   } finally {
     await context.close();
