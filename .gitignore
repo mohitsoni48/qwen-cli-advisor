@@ -17,3 +17,9 @@
 # Node
 node_modules/
 
+# Qwen CLI config & commands
+.qwen/
+
+# Specify project templates & scripts
+.specify/
+
