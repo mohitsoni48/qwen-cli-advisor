@@ -2,12 +2,24 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { execSync } = require('child_process');
-const { chromium } = require(
-  'C:/Users/Owner/AppData/Roaming/npm/node_modules/@playwright/mcp/node_modules/playwright-core'
-);
 
-const QWEN_DIR = path.join('C:', 'Users', 'Owner', '.qwen');
+// Resolve playwright-core from npm global root (same location as @playwright/mcp)
+function resolvePlaywrightCore() {
+  try { return require.resolve('playwright-core'); } catch { /* fall through */ }
+  // Fallback: derive from this file's expected sibling path in the global node_modules tree
+  const npmRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
+  const candidate = path.join(npmRoot, '@playwright/mcp/node_modules/playwright-core');
+  if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
+  throw new Error(
+    'Could not find playwright-core. Install @playwright/mcp globally: npm install -g @playwright/mcp'
+  );
+}
+
+const { chromium } = require(resolvePlaywrightCore());
+
+const QWEN_DIR = path.join(os.homedir(), '.qwen');
 // All web-based advisors share one profile — setup browser (browser MCP) also uses this
 // profile, so logins from /advisor.setup carry through to the runner.
 const SHARED_PROFILE = path.join(QWEN_DIR, 'playwright-profile');
@@ -131,7 +143,7 @@ const config = ADVISORS[advisorName];
     try {
       const fullCmd = config.buildCmd(question);
       const result = execSync(fullCmd, {
-        cwd: path.join('C:', 'Users', 'Owner', 'Desktop', 'Work'),
+        cwd: process.env.QWEN_WORK_DIR || process.cwd(),
         timeout: TIMEOUT_MS,
         encoding: 'utf8',
       });
