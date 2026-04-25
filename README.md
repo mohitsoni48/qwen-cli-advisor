@@ -185,53 +185,12 @@ Skip it for trivial tasks (renames, formatting, single log lines) and for back-t
 
 ---
 
-## Privacy & trust
-
-This is a tool that sends your code questions to third parties on your behalf. Be aware:
-
-- **Web advisors** (ChatGPT/Claude/Kimi/Qwen): each call submits your question to the advisor's web UI. Responses may be retained per that service's policies. Only ChatGPT is invoked in temporary-chat mode; the other three save to your account history. Review each provider's ToS — automated browser interaction is in a grey area for some services. Use at your own risk.
-- **CLI advisors**: questions go to whatever endpoint that CLI is configured to use (Anthropic, OpenAI, Google).
-- **OpenRouter**: questions go to OpenRouter, which routes them to the model provider you selected. Usage is metered and billed per OpenRouter's pricing.
-- **API keys** (`advisor-openrouter.json`, the runner's env vars) are stored in plaintext in your host dir. The installer sets mode `0600` on POSIX; on Windows protect the file with normal user-account permissions.
-- **Responses** are saved to `<host-dir>/advisor-last-response.md` (rewritten each call) so the host AI can read them on demand.
-- **No telemetry** is sent anywhere by this plugin itself.
-
----
-
 ## Known limitations
 
 - **Web advisors:** Chrome opens minimized in the taskbar during each call (~2–3 second overhead). Headless mode is blocked by Cloudflare. Only ChatGPT supports temporary (unsaved) chats. If an advisor's DOM changes, the selectors in `advisor-runner.js` will need updating.
 - **CLI advisors:** Run synchronously via `child_process.spawnSync` with a 90-second timeout. On Windows the runner uses `shell: true` to invoke npm-installed `.cmd` shims; arguments are still passed as an array (no string interpolation, so questions with quotes/spaces are safe).
 - **OpenRouter:** Requires network + a valid API key. The runner does not stream — you wait for the full response (also bounded by the 90s timeout).
 - **Profile sharing:** All web advisors share one Playwright profile (`<host-dir>/playwright-profile/`). Cookies are domain-scoped, so they don't interfere — but logging out of one advisor in that profile won't affect others.
-
----
-
-## Roadmap
-
-- [ ] Persistent Chrome between calls (eliminate startup overhead for web advisors)
-- [ ] Subagent isolation (run the advisor in a fully separate context window)
-- [ ] Streaming output for CLI and HTTP advisors
-- [ ] Headless fallback after first headed login
-
----
-
-## Contributing
-
-Issues and PRs welcome. Useful one-line tests before opening a PR:
-
-```bash
-node --check install.mjs
-node --check advisor-runner.js
-```
-
-For a full dry-run install into a temp dir (POSIX):
-
-```bash
-TMP=$(mktemp -d) && HOME="$TMP" USERPROFILE="$TMP" \
-  node install.mjs --ai claude --openrouter-key '' < /dev/null
-ls "$TMP/.claude/"
-```
 
 ---
 
