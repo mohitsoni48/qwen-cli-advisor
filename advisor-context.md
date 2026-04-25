@@ -1,6 +1,6 @@
 ## Advisor — AI Second Opinion
 
-You have access to `/advisor <question>` — a second AI running silently in the background (ChatGPT, Claude, Kimi, or Qwen — whichever you selected). Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
+You have access to `/advisor <question>` — a second AI running silently in the background (ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex CLI, or Gemini CLI — whichever you selected). Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
 
 ### When to call `/advisor`
 
@@ -34,26 +34,32 @@ Always include three things in the question:
 
 **Example calls:**
 ```
-/advisor In the Scout Android app ViewModel, I need to merge Room ride data (Flow<List<Ride>>) with live GPS updates (SharedFlow<Location>). Should I use combine() or a MutableStateFlow I update manually? I lean towards combine() but worry about back-pressure when GPS fires rapidly.
+/advisor In the Scout Android app ViewModel, I need to merge Room ride data (Flow<List<Ride>>) with live GPS updates (SharedFlow<Location>). Should I use combine() or collectLatest?
 ```
 
 ```
 /advisor I have a Cloudflare 403 from a Playwright browser navigating to chatgpt.com. I've tried adding headers and rotating user agents. The next option I see is switching to a persistent Chrome profile with --browser chrome. Is there a better approach I'm missing?
 ```
 
+CLI advisors (claude-code, codex, gemini) work the same way — just select one first:
+```
+/advisor.select claude-code
+/advisor Review this ViewModel architecture for potential memory leaks
+```
+
 ### Commands
 
 | Command | Purpose |
 |---------|---------|
-| `/advisor.select` | Choose your active advisor (chatgpt, claude, kimi, qwen) |
-| `/advisor.setup` | One-time login for the selected advisor — run after selecting |
+| `/advisor.select` | Choose your active advisor (chatgpt, claude, kimi, qwen, claude-code, codex, gemini) |
+| `/advisor.setup` | One-time login for web advisors; verify CLI tools |
 | `/advisor <question>` | Consult the active advisor silently in the background |
 
 ### Setup (first time)
 
 1. Run `/advisor.select <name>` to choose your advisor
-2. Run `/advisor.setup` — Chrome opens so you can log in
-3. Once logged in, run `/advisor.setup` again to confirm
-4. Run `/advisor <question>` — Chrome opens minimized and closes when done
+2. **Web-based** (chatgpt/claude/kimi/qwen): run `/advisor.setup` — Chrome opens so you can log in
+3. **CLI-based** (claude-code/codex/gemini): no setup needed, just select and go
+4. Once logged in (web) or verified (CLI), run `/advisor <question>` to consult
 
-To switch advisors later: run `/advisor.select <name>` then `/advisor.setup` if not yet logged in.
+To switch advisors later: run `/advisor.select <name>`. Web advisors may need `/advisor.setup` again if auth expired. CLI advisors work immediately.

@@ -1,5 +1,5 @@
 ---
-description: One-time login for the active advisor. Reads which advisor is selected, opens its login page in Chrome, and saves the session permanently. Run /advisor.select first.
+description: One-time setup for the active advisor. Web-based advisors need a browser login; CLI advisors just verify the tool is installed and authenticated. Run /advisor.select first.
 handoffs:
   - label: Start advising
     agent: advisor
@@ -10,7 +10,7 @@ handoffs:
 
 Authenticate the currently-selected advisor and mark it as ready for use.
 
-## Advisor URLs
+## Advisor URLs (web-based only)
 
 | Name | URL | Login indicator |
 |------|-----|----------------|
@@ -40,7 +40,7 @@ Use `filesystem.read_file` to read `{QWEN_DIR}advisor-active`.
 
   Then stop.
 
-Let `ADVISOR_NAME` = the file contents (trimmed, lowercase). Let `ADVISOR_URL` = the URL from the table above.
+Let `ADVISOR_NAME` = the file contents (trimmed, lowercase). Let `ADVISOR_URL` = the URL from the table above (or null for CLI advisors).
 
 ---
 
@@ -55,7 +55,34 @@ Use `filesystem.read_file` to check if `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` 
 
 ---
 
-### 3. Ensure runner script is available
+### 3. CLI-based advisors — verify installation
+
+For `claude-code`, `codex`, or `gemini`: no browser login needed. Just verify the tool works:
+
+Run `Bash(where claude)` (or `where codex` / `where gemini`). If found, write `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` with content `ready` and respond:
+
+> **\<ADVISOR_NAME\>** is ready.
+>
+> No browser login needed — it uses your existing CLI credentials.
+> Run `/advisor <your question>` to start.
+
+If the tool is not found, respond:
+> "**\<ADVISOR_NAME\>** is not installed."
+>
+> Install it first:
+> - Claude Code: `npm i -g @anthropic-ai/claude-code` (requires Anthropic subscription)
+> - Codex CLI: `npm i -g @openai/codex-cli` (requires OpenAI API key)
+> - Gemini CLI: `npm i -g @google/gemini-cli` (requires Google account)
+
+Then stop.
+
+---
+
+### 4. Web-based advisors — browser login
+
+For chatgpt, claude, kimi, qwen:
+
+#### Ensure runner script is available
 
 Check if `{QWEN_DIR}advisor-runner.js` exists using `filesystem.read_file`.
 
@@ -75,7 +102,7 @@ Then stop.
 
 ---
 
-### 4. Navigate to advisor login page
+### 5. Navigate to advisor login page
 
 Use the browser tool to navigate to `ADVISOR_URL`.
 
@@ -83,7 +110,7 @@ Take a snapshot of the page.
 
 ---
 
-### 5. Detect login state
+### 6. Detect login state
 
 Inspect the snapshot for login indicators: "Log in", "Sign in", "Sign up", "Get started", "Continue with Google".
 
@@ -102,11 +129,11 @@ Inspect the snapshot for login indicators: "Log in", "Sign in", "Sign up", "Get 
 
 Then stop.
 
-#### Logged in — continue to Step 6.
+#### Logged in — continue to Step 7.
 
 ---
 
-### 6. Save setup flag
+### 7. Save setup flag
 
 Use `filesystem.write_file` to write `ready` to:
 
@@ -116,7 +143,7 @@ Use `filesystem.write_file` to write `ready` to:
 
 ---
 
-### 7. Inject advisor guidance into QWEN.md (first setup only)
+### 8. Inject advisor guidance into QWEN.md (first setup only)
 
 Use `filesystem.read_file` to read `{QWEN_DIR}QWEN.md`.
 
@@ -128,19 +155,17 @@ Search for `## Advisor` in the content.
   2. Append its contents to QWEN.md with a blank line separator before it
   3. Also append these rows to the Slash Commands table in QWEN.md:
      ```
-     | `/advisor.select` | Choose your active AI advisor (ChatGPT, Claude, Kimi, Qwen) |
-     | `/advisor.setup` | One-time login for the selected advisor |
+     | `/advisor.select` | Choose your active AI advisor (ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex CLI, Gemini CLI) |
+     | `/advisor.setup` | One-time login for web advisors; verify CLI tools |
      | `/advisor <question>` | Get a second opinion from your active advisor |
      ```
 
 ---
 
-### 8. Confirm
+### 9. Confirm
 
 Respond:
 
-> **\<ADVISOR_NAME\> Setup Complete**
+> **\<ADVISOR_NAME\>** Setup Complete
 >
-> \<ADVISOR_NAME\> is logged in and the session is saved. Chrome will open minimized during advisor calls.
->
-> Run `/advisor <your question>` to start.
+> \<ADVISOR_NAME\> is ready to use. Run `/advisor <your question>` to start.

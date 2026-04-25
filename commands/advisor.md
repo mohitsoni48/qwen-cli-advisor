@@ -1,5 +1,5 @@
 ---
-description: Consult your active AI advisor (ChatGPT, Claude, Kimi, or Qwen). Chrome opens minimized and closes when done — your session stays clean. Use /advisor.select to switch advisors.
+description: Consult your active AI advisor. Chrome opens minimized for web-based advisors; CLI tools run silently in the terminal — your session stays clean. Use /advisor.select to switch advisors.
 ---
 
 ## User Input
@@ -14,12 +14,15 @@ Get a second opinion from whichever AI advisor is currently active.
 
 ## Advisor display names
 
-| Name | Display |
-|------|---------|
-| chatgpt | ChatGPT |
-| claude | Claude |
-| kimi | Kimi |
-| qwen | Qwen |
+| Name | Display | Type |
+|------|---------|------|
+| chatgpt | ChatGPT | Web (browser) |
+| claude | Claude | Web (browser) |
+| kimi | Kimi | Web (browser) |
+| qwen | Qwen | Web (browser) |
+| claude-code | Claude Code | CLI (local) |
+| codex | Codex CLI | CLI (local) |
+| gemini | Gemini CLI | CLI (local) |
 
 ## Steps
 
@@ -100,7 +103,9 @@ If the user then says "show advisor response" or "show full response", use `file
 
 | Error | Action |
 |-------|--------|
-| "Could not find input" | Tell user to run `/advisor.setup` again to re-authenticate |
+| "Could not find input" (web advisors) | Tell user to run `/advisor.setup` again to re-authenticate |
 | "No response received" | Tell user to retry — the advisor may have been slow |
 | Script times out (>90s) | Report timeout, suggest retrying |
+| CLI command not found | Tell user to install the CLI tool (`npm i -g @anthropic-ai/claude-code`, `npm i -g @openai/codex-cli`, or `npm i -g @google/gemini-cli`) |
+| "Permission denied" / sandbox prompt (CLI) | The runner uses `--dangerously-skip-permissions` (Claude), `--skip-git-repo-check` (Codex), and `--approval-mode yolo --skip-trust` (Gemini). Check advisor-runner.js if these flags need adjusting. |
 | Any other stderr | Show the error message verbatim |

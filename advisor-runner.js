@@ -2,12 +2,13 @@
 
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 const { chromium } = require(
   'C:/Users/Owner/AppData/Roaming/npm/node_modules/@playwright/mcp/node_modules/playwright-core'
 );
 
 const QWEN_DIR = path.join('C:', 'Users', 'Owner', '.qwen');
-// All advisors share one profile — setup browser (browser MCP) also uses this
+// All web-based advisors share one profile — setup browser (browser MCP) also uses this
 // profile, so logins from /advisor.setup carry through to the runner.
 const SHARED_PROFILE = path.join(QWEN_DIR, 'playwright-profile');
 const RESPONSE_FILE = path.join(QWEN_DIR, 'advisor-last-response.md');
@@ -88,6 +89,24 @@ const ADVISORS = {
       '[class*="assistant"] [class*="content"]',
     ],
   },
+
+  // CLI-based advisors — run locally, no browser needed
+  'claude-code': {
+    displayName: 'Claude Code',
+    type: 'cli',
+    buildCmd: (q) => `claude -p "${q}" --dangerously-skip-permissions`,
+  },
+  codex: {
+    displayName: 'Codex CLI',
+    type: 'cli',
+    buildCmd: (q) => `codex exec --skip-git-repo-check "${q}"`,
+  },
+  gemini: {
+    displayName: 'Gemini CLI',
+    type: 'cli',
+    // -p takes the prompt immediately; flags go after
+    buildCmd: (q) => `gemini -p "${q}" --skip-trust --approval-mode yolo`,
+  },
 };
 
 const advisorName = process.argv[2];
@@ -107,6 +126,44 @@ if (!question) {
 const config = ADVISORS[advisorName];
 
 (async () => {
+  // ── CLI-based advisors (no browser) ───────────────────────────────
+  if (config.type === 'cli') {
+    try {
+      const fullCmd = config.buildCmd(question);
+      const result = execSync(fullCmd, {
+        cwd: path.join('C:', 'Users', 'Owner', 'Desktop', 'Work'),
+        timeout: TIMEOUT_MS,
+        encoding: 'utf8',
+      });
+
+      const response = (result || '').trim();
+
+      if (!response) {
+        process.stderr.write(`ERROR: No response received from ${config.displayName}.\n`);
+        process.exit(1);
+      }
+
+      fs.writeFileSync(RESPONSE_FILE, response, 'utf8');
+
+      const PREVIEW_LEN = 200;
+      const preview = response.length > PREVIEW_LEN
+        ? response.slice(0, PREVIEW_LEN).trimEnd() + '…'
+        : response;
+
+      process.stdout.write(
+        `✓ ${config.displayName} responded (${response.length} chars)\n\n` +
+        `Preview: ${preview}\n\n` +
+        `Full response saved to: ${RESPONSE_FILE}\n`
+      );
+    } catch (err) {
+      const msg = err.stdout ? err.stdout.toString() : err.message;
+      process.stderr.write(`ERROR: ${config.displayName} failed — ${msg.trim()}\n`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // ── Browser-based advisors (Playwright) ──────────────────────────
   const context = await chromium.launchPersistentContext(SHARED_PROFILE, {
     channel: 'chrome',
     headless: false,
