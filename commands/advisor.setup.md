@@ -23,17 +23,17 @@ Authenticate the currently-selected advisor and mark it as ready for use.
 
 ### 0. Resolve paths
 
-Determine the user's `.qwen` directory:
-- **Windows:** run `Bash(echo %USERPROFILE%)`, then append `\.qwen\`
-- **macOS/Linux:** run `Bash(echo $HOME)`, then append `/.qwen/`
+```
+HOST_DIR = {{HOST_DIR}}
+```
 
-Let `QWEN_DIR` = that resolved path. Use it for all file operations below.
+Use it for all file operations below.
 
 ---
 
 ### 1. Read active advisor
 
-Use `filesystem.read_file` to read `{QWEN_DIR}advisor-active`.
+Use `filesystem.read_file` to read `{HOST_DIR}advisor-active`.
 
 - **If the file is missing or empty:** respond:
   > "No advisor selected. Run `/advisor.select` first to choose one."
@@ -46,7 +46,7 @@ Let `ADVISOR_NAME` = the file contents (trimmed, lowercase). Let `ADVISOR_URL` =
 
 ### 2. Check if already set up
 
-Use `filesystem.read_file` to check if `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` exists.
+Use `filesystem.read_file` to check if `{HOST_DIR}advisor-ready-{ADVISOR_NAME}` exists.
 
 - **If it exists:** respond:
   > "**\<ADVISOR_NAME\>** is already set up. Run `/advisor <question>` to start."
@@ -59,7 +59,7 @@ Use `filesystem.read_file` to check if `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` 
 
 For `claude-code`, `codex`, or `gemini`: no browser login needed. Just verify the tool works:
 
-Run `Bash(where claude)` (or `where codex` / `where gemini`). If found, write `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` with content `ready` and respond:
+Run `Bash(where claude)` (or `where codex` / `where gemini`). If found, write `{HOST_DIR}advisor-ready-{ADVISOR_NAME}` with content `ready` and respond:
 
 > **\<ADVISOR_NAME\>** is ready.
 >
@@ -71,7 +71,7 @@ If the tool is not found, respond:
 >
 > Install it first:
 > - Claude Code: `npm i -g @anthropic-ai/claude-code` (requires Anthropic subscription)
-> - Codex CLI: `npm i -g @openai/codex-cli` (requires OpenAI API key)
+> - Codex CLI: `npm i -g @openai/codex` (requires OpenAI API key)
 > - Gemini CLI: `npm i -g @google/gemini-cli` (requires Google account)
 
 Then stop.
@@ -84,13 +84,13 @@ For chatgpt, claude, kimi, qwen:
 
 #### Ensure runner script is available
 
-Check if `{QWEN_DIR}advisor-runner.js` exists using `filesystem.read_file`.
+Check if `{HOST_DIR}advisor-runner.js` exists using `filesystem.read_file`.
 
 **If missing**, look for it in the extension directory. Try these locations in order:
-1. `{QWEN_DIR}extensions/advisor/advisor-runner.js`
-2. `{QWEN_DIR}extensions/advisor-extension/advisor-runner.js`
+1. `{HOST_DIR}extensions/advisor/advisor-runner.js`
+2. `{HOST_DIR}extensions/advisor-extension/advisor-runner.js`
 
-If found in an extension directory, copy it to `{QWEN_DIR}advisor-runner.js` using:
+If found in an extension directory, copy it to `{HOST_DIR}advisor-runner.js` using:
 ```
 Bash(node -e "require('fs').copyFileSync('<source>', '<dest>')")
 ```
@@ -138,20 +138,20 @@ Then stop.
 Use `filesystem.write_file` to write `ready` to:
 
 ```
-{QWEN_DIR}advisor-ready-{ADVISOR_NAME}
+{HOST_DIR}advisor-ready-{ADVISOR_NAME}
 ```
 
 ---
 
 ### 8. Inject advisor guidance into QWEN.md (first setup only)
 
-Use `filesystem.read_file` to read `{QWEN_DIR}QWEN.md`.
+Use `filesystem.read_file` to read `{HOST_DIR}QWEN.md`.
 
 Search for `## Advisor` in the content.
 
 - **If found:** skip this step (already injected).
 - **If not found:**
-  1. Read `{QWEN_DIR}advisor-context.md`
+  1. Read `{HOST_DIR}advisor-context.md`
   2. Append its contents to QWEN.md with a blank line separator before it
   3. Also append these rows to the Slash Commands table in QWEN.md:
      ```

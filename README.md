@@ -1,6 +1,10 @@
-# qwen-cli-advisor
+# Open-Advisor
 
-A Qwen CLI plugin that uses a second AI as a silent advisor. Ask ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex CLI, or Gemini CLI a question mid-task and get a second opinion — without leaving your terminal.
+> Open-source `/advisor` slash command for any AI CLI — consult ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex, Gemini, or any OpenRouter model without leaving your terminal.
+
+Runs as a plugin inside **Qwen CLI, Claude Code, Codex CLI, Gemini CLI, or OpenCode**. Pick your host with `--ai <name>` at install time (speckit-style).
+
+The advisor you consult can be any of: **ChatGPT, Claude, Kimi, Qwen** (web — Playwright), **Claude Code, Codex CLI, Gemini CLI** (local — child process), or **any model on OpenRouter** (HTTP — OpenAI-compatible API).
 
 ```
 /advisor.select claude-code
@@ -12,140 +16,116 @@ A Qwen CLI plugin that uses a second AI as a silent advisor. Ask ChatGPT, Claude
  Claude Code says:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Use StateFlow when the UI always needs the latest value (e.g. screen state).
-Use SharedFlow for events that should be consumed once (e.g. navigation, toasts).
-...
+✓ Claude Code responded (1247 chars)
 
+Preview: Use StateFlow when the UI always needs the latest value (e.g. screen state).
+Use SharedFlow for events that should be consumed once (e.g. navigation, toasts)…
+
+Full response saved to: ~/.claude/advisor-last-response.md
+
+Say "show advisor response" to load the full reply.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+The full reply stays out of your main chat context unless you explicitly ask for it — keeps your session lean during long tasks.
 
 ---
 
 ## How it works
 
-- Supports **ChatGPT, Claude, Kimi, Qwen** as web-based advisors (via Playwright browser automation) and **Claude Code, Codex CLI, Gemini CLI** as local CLI advisors (via `child_process.execSync`)
-- Switch any time with `/advisor.select` — 7 advisors total
-- For web-based advisors: Chrome opens minimized in the background. Submits your question, waits for the full response, saves it to disk, and returns a preview.
-- For CLI advisors: runs silently via terminal command. No browser overhead. Uses existing CLI credentials.
-- One-time login per web advisor via `/advisor.setup`. CLI advisors need no setup — just select and go.
+- **8 advisors total**, three transports:
+  - **Web** (ChatGPT, Claude, Kimi, Qwen) — Playwright drives a real Chrome instance with a persistent profile; one login per advisor, sessions persist
+  - **CLI** (Claude Code, Codex, Gemini) — `child_process.spawnSync` runs the local binary; uses each tool's existing credentials
+  - **HTTP** (OpenRouter) — direct call to `openrouter.ai/api/v1/chat/completions`; pick any model OpenRouter exposes
+- Switch any time with `/advisor.select`
+- Every response is saved to `<host-dir>/advisor-last-response.md`; only a 200-char preview is shown inline
 
 ---
 
 ## Prerequisites
 
-- [Qwen CLI](https://github.com/QwenLM/qwen-code) installed
 - Node.js 18+
-- Google Chrome installed (for web-based advisors only)
-- An account on at least one of: ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex, Gemini
+- One of the supported host CLIs ([Qwen](https://github.com/QwenLM/qwen-code), [Claude Code](https://github.com/anthropics/claude-code), [Codex](https://www.npmjs.com/package/@openai/codex), [Gemini](https://www.npmjs.com/package/@google/gemini-cli), or OpenCode)
+- **Google Chrome** installed (web advisors only — Playwright launches Chrome via `channel: 'chrome'`; bundled Chromium and other browsers are not used)
+- An account on at least one advisor service
 
-### Optional CLI tools
+Should work on macOS, Linux, and Windows 11; the install flow is verified on Windows 11.
 
-| Advisor | Install command | Requires |
-|---------|----------------|----------|
+### Optional CLI advisor tools
+
+Only needed if you want to *consult* one of these as your advisor (you don't need them just to host the plugin):
+
+| Advisor | Install command | Auth |
+|---------|----------------|------|
 | Claude Code | `npm i -g @anthropic-ai/claude-code` | Anthropic subscription |
-| Codex CLI | `npm i -g @openai/codex-cli` | OpenAI API key |
+| Codex CLI | `npm i -g @openai/codex` | OpenAI API key |
 | Gemini CLI | `npm i -g @google/gemini-cli` | Google account |
-
-Install only the ones you want to use. Web-based advisors work without any extra installs.
 
 ---
 
 ## Installation
 
-Clone the repo and run the installer — it handles everything automatically:
+```bash
+git clone https://github.com/mohitsoni48/open-advisor.git
+cd open-advisor
+
+node install.mjs --ai <host>
+```
+
+`<host>` is one of:
+
+| `--ai` | Install dir | Commands subdir | Context file |
+|--------|-------------|-----------------|--------------|
+| `qwen` | `~/.qwen/` | `commands/` | `QWEN.md` |
+| `claude` | `~/.claude/` | `commands/` | `CLAUDE.md` |
+| `codex` | `~/.codex/` | `prompts/` | `AGENTS.md` |
+| `gemini` | `~/.gemini/` | `commands/` | `GEMINI.md` |
+| `opencode` | `~/.config/opencode/` | `command/` | `AGENTS.md` |
+| `all` | every dir above | — | — |
+
+For each selected host the installer:
+- Renders and copies `/advisor`, `/advisor.select`, `/advisor.setup` into the host's commands subdir
+- Copies `advisor-runner.js` and `advisor-context.md` into the host dir
+- Writes the host's context file from the template, or appends an `## Advisor` section if one already exists
+- For `--ai qwen` only: also installs MCP packages globally and wires them into `~/.qwen/settings.json` (`filesystem`, `sequential-thinking`, `memory`, `context7`, `web-search`, `browser`, `sqlite`, `github`, `code-runner`)
+
+The runner derives its host dir from `__dirname` at runtime — no path strings baked into source, no escape-character pitfalls on Windows.
+
+### Optional flags
 
 ```bash
-git clone https://github.com/mohitsoni48/qwen-cli-advisor.git
-cd qwen-cli-advisor
-node install.mjs
+--openrouter-key <KEY>     # save OpenRouter API key for the `openrouter` advisor
+--openrouter-model <ID>    # e.g. anthropic/claude-3.5-sonnet (default openai/gpt-4o-mini)
+--tavily-key <KEY>         # Tavily API key, Qwen MCP only
+--github-token <TOKEN>     # GitHub token, Qwen MCP only
 ```
 
-The installer will:
-- Install all 9 MCP packages globally (`filesystem`, `sequential-thinking`, `memory`, `context7`, `web-search`, `browser`, `sqlite`, `github`, `code-runner`)
-- Copy `/advisor`, `/advisor.select`, `/advisor.setup` commands to `~/.qwen/commands/`
-- Copy `advisor-runner.js` and `advisor-context.md` to `~/.qwen/`
-- Merge MCP config into `~/.qwen/settings.json` (backs up your existing file first)
-- Write `~/.qwen/QWEN.md` from template, or AI-merge with your existing one if you already have it
-
-You'll be prompted for an optional Tavily API key (for the `web-search` MCP) and GitHub token (for the `github` MCP). Both can be skipped and added later.
-
-> **QWEN.md merge:** If you already have a `~/.qwen/QWEN.md`, the installer calls a local OpenAI-compatible endpoint (e.g. LM Studio at `localhost:1234`) to intelligently merge it with the advisor template. You can point it at any OpenAI-compatible API. If the AI call fails, it falls back to appending the advisor section.
-
----
-
-### Manual installation (optional)
-
-If you prefer to install manually instead of running the script:
-
-<details>
-<summary>Show manual steps</summary>
-
-**1. Install the browser MCP** (required for advisor):
-```bash
-npm install -g @playwright/mcp
-```
-
-**2. Copy command files** to `~/.qwen/commands/`:
-```
-.qwen/commands/advisor.select.md
-.qwen/commands/advisor.setup.md
-.qwen/commands/advisor.md
-```
-
-**3. Copy support files** to `~/.qwen/`:
-```
-advisor-runner.js
-advisor-context.md
-```
-
-**4. Configure the browser MCP** in `~/.qwen/settings.json`:
-```json
-"browser": {
-  "command": "node",
-  "args": [
-    "/path/to/node_modules/@playwright/mcp/cli.js",
-    "--browser", "chrome",
-    "--user-data-dir", "/path/to/.qwen/playwright-profile"
-  ],
-  "trust": true
-}
-```
-
-> **Why not headless?** ChatGPT uses Cloudflare bot detection. A fresh headless browser gets blocked. Headed Chrome with a persistent profile passes Cloudflare on first launch, then session cookies handle all subsequent visits. All advisors share this profile — cookies are domain-scoped so they don't interfere with each other.
-
-**5. Add permission** to `~/.qwen/settings.json`:
-```json
-"Bash(node *)"
-```
-
-</details>
+`node install.mjs --help` for the full list. Anything skipped can be set later by editing the host dir.
 
 ---
 
 ## Setup (one time per advisor)
 
-Restart Qwen CLI after the config changes, then:
+After the installer finishes, **restart your CLI host**, then:
 
 ```
-/advisor.select <name>    # choose from: chatgpt, claude, kimi, qwen, claude-code, codex, gemini
-/advisor.setup            # web advisors only — browser login; CLI needs no setup
+/advisor.select <name>    # chatgpt | claude | kimi | qwen | claude-code | codex | gemini | openrouter
+/advisor.setup            # web advisors: browser login. CLI/HTTP: nothing to do.
 ```
 
-This will:
-1. Save your advisor choice
-2. **Web-based** (chatgpt/claude/kimi/qwen): open Chrome so you can log in manually
-3. **CLI-based** (claude-code/codex/gemini): verify the tool is installed and authenticated
-4. Once logged in (web) or verified (CLI): save the session and inject advisor guidance into your `QWEN.md`
+What `/advisor.setup` does, by advisor type:
 
-Repeat for any other advisors you want to use. Web advisors only need setup once — the session persists in `~/.qwen/playwright-profile`. CLI advisors need no setup beyond having the tool installed.
+- **Web** (chatgpt/claude/kimi/qwen): opens Chrome at the advisor's URL so you can log in. Run `/advisor.setup` again afterward to confirm. The session is saved in `<host-dir>/playwright-profile/` and reused on every subsequent call.
+- **CLI** (claude-code/codex/gemini): verifies the binary is on your `PATH`. No login needed.
+- **HTTP** (openrouter): no setup — the runner reads `OPENROUTER_API_KEY` from your env, or `<host-dir>/advisor-openrouter.json` if you used `--openrouter-key` at install time.
 
 ---
 
 ## Usage
 
 ```
-/advisor.select <name>    # choose advisor: chatgpt, claude, kimi, qwen
-/advisor <your question>  # consult the active advisor
+/advisor.select <name>
+/advisor <your question>
 ```
 
 **Examples:**
@@ -160,58 +140,101 @@ Repeat for any other advisors you want to use. Web advisors only need setup once
 /advisor I've been getting a NullPointerException in onResume but only on cold start. What should I check first?
 ```
 
+Type **"show advisor response"** afterward to load the full reply into the chat (otherwise only the preview is shown).
+
 ### When to use it
 
-- Before choosing between two technical approaches
+- Before choosing between two non-obvious technical approaches
 - When stuck on a bug after 2+ attempts
-- Before making a decision that touches architecture or multiple files
-- When you want a second opinion on a plan
+- Before a change that affects 5+ files or introduces a new pattern
+- When the user asks "what do you think?" / "which is better?"
+
+Skip it for trivial tasks (renames, formatting, single log lines) and for back-to-back turns on the same decision.
 
 ---
 
-## Files
+## Files installed per host
 
-| File | Purpose |
-|------|---------|
-| `.qwen/commands/advisor.select.md` | Choose the active advisor (7 options) |
-| `.qwen/commands/advisor.setup.md` | One-time login for web advisors; verify CLI tools |
-| `.qwen/commands/advisor.md` | The main `/advisor` command |
-| `advisor-runner.js` → `~/.qwen/` | Standalone Playwright + child_process script — handles all browser and CLI interaction |
-| `advisor-context.md` → `~/.qwen/` | Advisor guidance injected into QWEN.md during setup |
+| Path (relative to host dir) | Purpose |
+|---|---|
+| `commands/advisor.md` (or `prompts/`, `command/`) | The `/advisor` slash command |
+| `commands/advisor.select.md` | The `/advisor.select` slash command |
+| `commands/advisor.setup.md` | The `/advisor.setup` slash command |
+| `advisor-runner.js` | Standalone Playwright + spawn + HTTP script — handles every advisor type |
+| `advisor-context.md` | Advisor guidance appended to the host's context file during setup |
+| `advisor-active` | Plain-text file: name of the currently-selected advisor |
+| `advisor-ready-<name>` | Empty marker file: this advisor is set up and ready |
+| `advisor-last-response.md` | Full text of the most recent response (rewritten each call) |
+| `advisor-openrouter.json` | OpenRouter API key + model (only if you configured one; chmod 0600 on POSIX) |
+| `playwright-profile/` | Shared persistent Chrome profile for web advisors |
 
 ---
 
 ## Supported advisors
 
-| Name | Service | Chat URL / CLI Command | Type | Notes |
-|------|---------|------------------------|------|-------|
-| `chatgpt` | OpenAI ChatGPT | chatgpt.com | Web | Temporary chat (not saved to history) |
-| `claude` | Anthropic Claude | claude.ai/new | Web | Conversations are saved to history |
-| `kimi` | Moonshot AI Kimi | kimi.com | Web | Conversations are saved to history |
-| `qwen` | Alibaba Qwen | chat.qwen.ai | Web | Conversations are saved to history |
-| `claude-code` | Anthropic Claude Code | `claude -p <question>` | CLI | Requires subscription; runs locally |
-| `codex` | OpenAI Codex CLI | `codex exec <question>` | CLI | Requires API key; runs locally |
-| `gemini` | Google Gemini CLI | `gemini -p <question>` | CLI | Requires Google account; runs locally |
+| Name | Service | Endpoint | Type | Notes |
+|------|---------|----------|------|-------|
+| `chatgpt` | OpenAI ChatGPT | chatgpt.com | Web | Uses temporary chat (not saved to history) |
+| `claude` | Anthropic Claude | claude.ai/new | Web | Conversations saved to your history |
+| `kimi` | Moonshot AI Kimi | kimi.com | Web | Conversations saved to your history |
+| `qwen` | Alibaba Qwen | chat.qwen.ai | Web | Conversations saved to your history |
+| `claude-code` | Anthropic Claude Code | `claude -p <q>` | CLI | Requires subscription; runs locally |
+| `codex` | OpenAI Codex CLI | `codex exec <q>` | CLI | Requires API key; runs locally |
+| `gemini` | Google Gemini CLI | `gemini -p <q>` | CLI | Requires Google account; runs locally |
+| `openrouter` | Any model via OpenRouter | `openrouter.ai/api/v1` | HTTP | OpenAI-compatible; usage is billed |
+
+---
+
+## Privacy & trust
+
+This is a tool that sends your code questions to third parties on your behalf. Be aware:
+
+- **Web advisors** (ChatGPT/Claude/Kimi/Qwen): each call submits your question to the advisor's web UI. Responses may be retained per that service's policies. Only ChatGPT is invoked in temporary-chat mode; the other three save to your account history. Review each provider's ToS — automated browser interaction is in a grey area for some services. Use at your own risk.
+- **CLI advisors**: questions go to whatever endpoint that CLI is configured to use (Anthropic, OpenAI, Google).
+- **OpenRouter**: questions go to OpenRouter, which routes them to the model provider you selected. Usage is metered and billed per OpenRouter's pricing.
+- **API keys** (`advisor-openrouter.json`, the runner's env vars) are stored in plaintext in your host dir. The installer sets mode `0600` on POSIX; on Windows protect the file with normal user-account permissions.
+- **Responses** are saved to `<host-dir>/advisor-last-response.md` (rewritten each call) so the host AI can read them on demand.
+- **No telemetry** is sent anywhere by this plugin itself.
 
 ---
 
 ## Known limitations
 
-- **Web advisors:** Chrome opens minimized in the taskbar during each call (~2–3 second overhead). Headless mode is blocked by Cloudflare. Only ChatGPT supports temporary (unsaved) chats. If an advisor's DOM changes, selectors in `advisor-runner.js` may need updating.
-- **CLI advisors:** Run synchronously via `child_process.execSync`. No browser overhead but depend on the CLI tool being installed and authenticated. Claude Code may take a moment to initialize its session. Output is captured from stdout — very long responses are truncated at 200 chars in the preview (full response saved to disk).
-- All advisors share one Playwright profile (`~/.qwen/playwright-profile`) for web-based logins. CLI tools use their own credential stores.
+- **Web advisors:** Chrome opens minimized in the taskbar during each call (~2–3 second overhead). Headless mode is blocked by Cloudflare. Only ChatGPT supports temporary (unsaved) chats. If an advisor's DOM changes, the selectors in `advisor-runner.js` will need updating.
+- **CLI advisors:** Run synchronously via `child_process.spawnSync` with a 90-second timeout. On Windows the runner uses `shell: true` to invoke npm-installed `.cmd` shims; arguments are still passed as an array (no string interpolation, so questions with quotes/spaces are safe).
+- **OpenRouter:** Requires network + a valid API key. The runner does not stream — you wait for the full response (also bounded by the 90s timeout).
+- **Profile sharing:** All web advisors share one Playwright profile (`<host-dir>/playwright-profile/`). Cookies are domain-scoped, so they don't interfere — but logging out of one advisor in that profile won't affect others.
 
 ---
 
 ## Roadmap
 
-- [ ] Silent mode: keep Chrome running between calls to eliminate startup overhead (web advisors)
-- [ ] Subagent isolation: run the advisor in a fully separate Qwen context
-- [ ] Headless fallback after initial headed login
-- [ ] Streaming output for CLI advisors (real-time response display)
+- [ ] Persistent Chrome between calls (eliminate startup overhead for web advisors)
+- [ ] Subagent isolation (run the advisor in a fully separate context window)
+- [ ] Streaming output for CLI and HTTP advisors
+- [ ] Headless fallback after first headed login
+
+---
+
+## Contributing
+
+Issues and PRs welcome. Useful one-line tests before opening a PR:
+
+```bash
+node --check install.mjs
+node --check advisor-runner.js
+```
+
+For a full dry-run install into a temp dir (POSIX):
+
+```bash
+TMP=$(mktemp -d) && HOME="$TMP" USERPROFILE="$TMP" \
+  node install.mjs --ai claude --openrouter-key '' < /dev/null
+ls "$TMP/.claude/"
+```
 
 ---
 
 ## License
 
-MIT
+[MIT](LICENSE)

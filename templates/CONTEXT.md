@@ -1,4 +1,4 @@
-# QWEN.md — Global Context
+# {{CONTEXT_FILE}} — Global Context
 
 ## Identity
 You are a senior developer assistant. Execute tasks directly. Keep responses concise — one sentence unless more is asked.
@@ -114,7 +114,7 @@ Execute code snippets inline to test logic before writing to files.
 
 | Command | Purpose |
 |---------|---------|
-| `/advisor.select` | Choose your active AI advisor (chatgpt, claude, kimi, qwen) |
+| `/advisor.select` | Choose your active AI advisor (chatgpt, claude, kimi, qwen, claude-code, codex, gemini, openrouter) |
 | `/advisor.setup` | One-time login for the selected advisor |
 | `/advisor <question>` | Get a second opinion from your active advisor |
 
@@ -122,7 +122,7 @@ Execute code snippets inline to test logic before writing to files.
 
 ## Advisor — AI Second Opinion
 
-You have access to `/advisor <question>` — a second AI running silently in the background (ChatGPT, Claude, Kimi, or Qwen — whichever you selected). Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
+You have access to `/advisor <question>` — a second AI running silently in the background (ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex, Gemini, or OpenRouter — whichever you selected). Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
 
 ### When to call `/advisor`
 
@@ -167,8 +167,8 @@ Always include three things in the question:
 
 | Command | Purpose |
 |---------|---------|
-| `/advisor.select` | Choose your active advisor (chatgpt, claude, kimi, qwen) |
-| `/advisor.setup` | One-time login — run after selecting, opens Chrome |
+| `/advisor.select` | Choose your active advisor (chatgpt, claude, kimi, qwen, claude-code, codex, gemini, openrouter) |
+| `/advisor.setup` | One-time login (web advisors) or verify CLI / configure OpenRouter |
 | `/advisor <question>` | Consult the active advisor silently in the background |
 
 ### Setup (first time)

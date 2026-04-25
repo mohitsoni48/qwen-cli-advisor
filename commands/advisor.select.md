@@ -23,16 +23,17 @@ Let the user pick which AI acts as their advisor. The choice is saved to `adviso
 | 5 | claude-code | Claude Code (Anthropic) | CLI |
 | 6 | codex | Codex CLI (OpenAI) | CLI |
 | 7 | gemini | Gemini CLI (Google) | CLI |
+| 8 | openrouter | OpenRouter (any model) | HTTP |
 
 ## Steps
 
 ### 0. Resolve paths
 
-Determine the user's `.qwen` directory:
-- **Windows:** run `Bash(echo %USERPROFILE%)`, then append `\.qwen\`
-- **macOS/Linux:** run `Bash(echo $HOME)`, then append `/.qwen/`
+```
+HOST_DIR = {{HOST_DIR}}
+```
 
-Let `QWEN_DIR` = that resolved path. Use it for all file operations below.
+Use it for all file operations below.
 
 ---
 
@@ -51,6 +52,7 @@ If `$ARGUMENTS` is empty, display the table above and respond:
 > | 5 | claude-code | Claude Code (Anthropic) | CLI |
 > | 6 | codex | Codex CLI (OpenAI) | CLI |
 > | 7 | gemini | Gemini CLI (Google) | CLI |
+| 8 | openrouter | OpenRouter (any model) | HTTP |
 >
 > Run `/advisor.select <name or number>` to activate one.
 > Example: `/advisor.select claude-code`
@@ -65,9 +67,10 @@ Accept either the name or number. Map numbers to names:
 - `5` → `claude-code`
 - `6` → `codex`
 - `7` → `gemini`
+- `8` → `openrouter`
 
 If the input doesn't match any entry, show the table and respond:
-> "Unknown advisor. Choose from: chatgpt, claude, kimi, qwen, claude-code, codex, gemini."
+> "Unknown advisor. Choose from: chatgpt, claude, kimi, qwen, claude-code, codex, gemini, openrouter."
 
 Then stop.
 
@@ -78,7 +81,7 @@ Then stop.
 Use `filesystem.write_file` to write the advisor name (e.g. `claude-code`) to:
 
 ```
-{QWEN_DIR}advisor-active
+{HOST_DIR}advisor-active
 ```
 
 ---
@@ -88,7 +91,7 @@ Use `filesystem.write_file` to write the advisor name (e.g. `claude-code`) to:
 Use `filesystem.read_file` to check if the following file exists:
 
 ```
-{QWEN_DIR}advisor-ready-<name>
+{HOST_DIR}advisor-ready-<name>
 ```
 
 **If it exists** — advisor is already authenticated (or CLI-based, no auth needed). Respond:
@@ -109,3 +112,8 @@ Use `filesystem.read_file` to check if the following file exists:
   >
   > No setup needed — CLI advisors run locally and use your existing credentials.
   > Run `/advisor <your question>` to start immediately.
+
+- **For HTTP advisors** (openrouter): respond:
+  > "**\<Name\>** selected."
+  >
+  > Make sure `OPENROUTER_API_KEY` is set in your environment, or that `{HOST_DIR}advisor-openrouter.json` contains your key + model. Run `/advisor.setup` to configure, or `/advisor <question>` to start.

@@ -23,3 +23,6 @@ node_modules/
 # Specify project templates & scripts
 .specify/
 
+# OMC internal state
+.omc/
+

@@ -23,22 +23,25 @@ Get a second opinion from whichever AI advisor is currently active.
 | claude-code | Claude Code | CLI (local) |
 | codex | Codex CLI | CLI (local) |
 | gemini | Gemini CLI | CLI (local) |
+| openrouter | OpenRouter | HTTP (any model) |
 
 ## Steps
 
 ### 0. Resolve paths
 
-Determine the user's `.qwen` directory:
-- **Windows:** run `Bash(echo %USERPROFILE%)`, then append `\.qwen\`
-- **macOS/Linux:** run `Bash(echo $HOME)`, then append `/.qwen/`
+The installer baked in your host-specific advisor directory below as `HOST_DIR`:
 
-Let `QWEN_DIR` = that resolved path. Use it for all file operations below.
+```
+HOST_DIR = {{HOST_DIR}}
+```
+
+Use it for all file operations below.
 
 ---
 
 ### 1. Read active advisor
 
-Use `filesystem.read_file` to read `{QWEN_DIR}advisor-active`.
+Use `filesystem.read_file` to read `{HOST_DIR}advisor-active`.
 
 - **If missing or empty:** respond:
   > "No advisor selected. Run `/advisor.select` to choose one (chatgpt, claude, kimi, qwen)."
@@ -51,7 +54,7 @@ Let `ADVISOR_NAME` = the file contents (trimmed). Let `DISPLAY_NAME` = the displ
 
 ### 2. Validate prerequisites
 
-Use `filesystem.read_file` to check if `{QWEN_DIR}advisor-ready-{ADVISOR_NAME}` exists.
+Use `filesystem.read_file` to check if `{HOST_DIR}advisor-ready-{ADVISOR_NAME}` exists.
 
 - **If missing:** respond:
   > "**\<DISPLAY_NAME\>** is not set up yet. Run `/advisor.setup` to log in."
@@ -70,7 +73,7 @@ Then stop.
 Execute the following shell command, replacing `<ADVISOR_NAME>` and `<question>` with the actual values:
 
 ```
-node "{QWEN_DIR}advisor-runner.js" "<ADVISOR_NAME>" "<question>"
+node "{HOST_DIR}advisor-runner.js" "<ADVISOR_NAME>" "<question>"
 ```
 
 - Chrome starts minimized — the user will not see it take focus
@@ -95,7 +98,7 @@ Say "show advisor response" to load the full reply.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-If the user then says "show advisor response" or "show full response", use `filesystem.read_file` to read `{QWEN_DIR}advisor-last-response.md` and display its contents.
+If the user then says "show advisor response" or "show full response", use `filesystem.read_file` to read `{HOST_DIR}advisor-last-response.md` and display its contents.
 
 ---
 
@@ -106,6 +109,6 @@ If the user then says "show advisor response" or "show full response", use `file
 | "Could not find input" (web advisors) | Tell user to run `/advisor.setup` again to re-authenticate |
 | "No response received" | Tell user to retry — the advisor may have been slow |
 | Script times out (>90s) | Report timeout, suggest retrying |
-| CLI command not found | Tell user to install the CLI tool (`npm i -g @anthropic-ai/claude-code`, `npm i -g @openai/codex-cli`, or `npm i -g @google/gemini-cli`) |
+| CLI command not found | Tell user to install the CLI tool (`npm i -g @anthropic-ai/claude-code`, `npm i -g @openai/codex`, or `npm i -g @google/gemini-cli`) |
 | "Permission denied" / sandbox prompt (CLI) | The runner uses `--dangerously-skip-permissions` (Claude), `--skip-git-repo-check` (Codex), and `--approval-mode yolo --skip-trust` (Gemini). Check advisor-runner.js if these flags need adjusting. |
 | Any other stderr | Show the error message verbatim |
