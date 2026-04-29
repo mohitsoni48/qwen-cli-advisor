@@ -40,7 +40,7 @@ Always include three things in the question:
 
 ### Setup
 
-Run `/advisor.setup` once per advisor. For model and CLI advisors, nothing to do. For web advisors, Chrome opens so you can log in.
+Run `/advisor.setup` once per advisor. Model and CLI advisors need no browser login — just verify config.
 
 ### Example calls
 

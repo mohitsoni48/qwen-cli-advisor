@@ -10,7 +10,7 @@ Write the selected advisor id to `{HOST_DIR}advisor-active`.
 
 ### 1. Read available advisors
 
-Read `{HOST_DIR}settings.json` (or `~/.qwen/settings.json`). Parse the `advisors` array.
+Read `{HOST_DIR}../settings.json` (or `~/.qwen/settings.json`). Parse the `advisors` array.
 
 ### 2. Parse input
 

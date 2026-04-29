@@ -196,9 +196,8 @@ async function installForHost(hostName, host, opts) {
   writeFileSync(join(host.dir, 'advisor.py'), pySrc);
   ok('advisor.py');
 
-  // advisor-active — tracks current advisor id
-  writeFileSync(join(host.dir, 'advisor-active'), 'qwen3.6-35b-a3b\n');
-  ok('advisor-active');
+  // advisor-active — tracks current advisor id (user must set via /advisor.select)
+  ok('advisor-active (create via /advisor.select)');
 
   // advisor-last-response.md — output file
   ok('advisor-last-response.md (created on first run)');
@@ -397,8 +396,8 @@ async function main() {
   log();
   log('Next steps:');
   log('  1. Restart your CLI host');
-  log('  2. /advisor.select <name>   ← chatgpt, claude, kimi, qwen, claude-code, codex, gemini, openrouter');
-  log('  3. /advisor.setup            ← web advisors only (browser login)');
+  log('  2. /advisor.select <id>      ← set your active advisor');
+  log('  3. /advisor.setup            ← verify config');
   log('  4. /advisor <your question>  ← ready');
   log();
 }

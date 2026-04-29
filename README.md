@@ -181,7 +181,6 @@ Type **"show advisor response"** afterward to load the full reply into the chat.
 - **Python HTTP libraries hang on Windows** — the runner uses `curl` subprocess instead of urllib/httpx/openai SDK
 - **CLI advisors**: Run synchronously with a 180-second timeout. On Windows the runner uses `shell: true` for npm shims.
 - **HTTP advisors**: Requires network + a valid API key. The runner does not stream.
-- **Temp payload file**: Written to `<host-dir>/.nv_payload.tmp` and cleaned up after each call.
 
 ---
 

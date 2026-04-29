@@ -51,8 +51,8 @@ Always include three things in the question:
 
 ### Setup (first time)
 
-1. Run `/advisor.select <name>` to choose your advisor
-2. Run `/advisor.setup` — for web advisors this opens a browser for login
+1. Run `/advisor.select <id>` to choose your advisor
+2. Run `/advisor.setup` to verify config
 3. Once set up, run `/advisor <question>` to consult
 4. Full responses are saved to `~/.qwen/advisor/advisor-last-response.md`
 
