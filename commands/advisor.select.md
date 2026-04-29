@@ -1,119 +1,34 @@
 ---
-description: Choose your active AI advisor (ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex CLI, or Gemini CLI). Run /advisor.setup after selecting web-based advisors to authenticate. CLI advisors need no setup — just select and go.
+description: Select which advisor to use. Plain script — reads input, writes advisor-active.
 ---
-
-## User Input
-
-```text
-$ARGUMENTS
-```
 
 ## Goal
 
-Let the user pick which AI acts as their advisor. The choice is saved to `advisor-active` in the `.qwen` folder of the user's home directory and read by `/advisor` on every call.
-
-## Available Advisors
-
-| # | Name | Service | Type |
-|---|------|---------|------|
-| 1 | chatgpt | ChatGPT (OpenAI) | Web |
-| 2 | claude | Claude (Anthropic) | Web |
-| 3 | kimi | Kimi (Moonshot AI) | Web |
-| 4 | qwen | Qwen (Alibaba) | Web |
-| 5 | claude-code | Claude Code (Anthropic) | CLI |
-| 6 | codex | Codex CLI (OpenAI) | CLI |
-| 7 | gemini | Gemini CLI (Google) | CLI |
-| 8 | openrouter | OpenRouter (any model) | HTTP |
+Write the selected advisor id to `{HOST_DIR}advisor-active`.
 
 ## Steps
 
-### 0. Resolve paths
+### 1. Read available advisors
 
-```
-HOST_DIR = {{HOST_DIR}}
-```
+Read `{HOST_DIR}settings.json` (or `~/.qwen/settings.json`). Parse the `advisors` array.
 
-Use it for all file operations below.
+### 2. Parse input
 
----
+If `$ARGUMENTS` is empty, list the available advisors and ask the user to run `/advisor.select <id>`.
 
-### 1. Parse selection
+If `$ARGUMENTS` is provided, trim it and use as the advisor id.
 
-If `$ARGUMENTS` is empty, display the table above and respond:
+### 3. Validate
 
-> **Select your advisor:**
->
-> | # | Name | Service | Type |
-> |---|------|---------|------|
-> | 1 | chatgpt | ChatGPT (OpenAI) | Web |
-> | 2 | claude | Claude (Anthropic) | Web |
-> | 3 | kimi | Kimi (Moonshot AI) | Web |
-> | 4 | qwen | Qwen (Alibaba) | Web |
-> | 5 | claude-code | Claude Code (Anthropic) | CLI |
-> | 6 | codex | Codex CLI (OpenAI) | CLI |
-> | 7 | gemini | Gemini CLI (Google) | CLI |
-| 8 | openrouter | OpenRouter (any model) | HTTP |
->
-> Run `/advisor.select <name or number>` to activate one.
-> Example: `/advisor.select claude-code`
+Check if the advisor id exists in the `advisors` array. If not, respond:
+> "Unknown advisor. Available: {list of ids}"
 
-Then stop.
+### 4. Write
 
-Accept either the name or number. Map numbers to names:
-- `1` → `chatgpt`
-- `2` → `claude`
-- `3` → `kimi`
-- `4` → `qwen`
-- `5` → `claude-code`
-- `6` → `codex`
-- `7` → `gemini`
-- `8` → `openrouter`
+Write the advisor id to `{HOST_DIR}advisor-active`.
 
-If the input doesn't match any entry, show the table and respond:
-> "Unknown advisor. Choose from: chatgpt, claude, kimi, qwen, claude-code, codex, gemini, openrouter."
+### 5. Confirm
 
-Then stop.
-
----
-
-### 2. Write active advisor
-
-Use `filesystem.write_file` to write the advisor name (e.g. `claude-code`) to:
-
-```
-{HOST_DIR}advisor-active
-```
-
----
-
-### 3. Check setup status
-
-Use `filesystem.read_file` to check if the following file exists:
-
-```
-{HOST_DIR}advisor-ready-<name>
-```
-
-**If it exists** — advisor is already authenticated (or CLI-based, no auth needed). Respond:
-
-> ✓ **\<Name\> is now your active advisor.**
+Respond:
+> ✓ **{advisor name}** is now your active advisor.
 > Run `/advisor <your question>` to start.
-
-**If it does not exist:**
-
-- **For web-based advisors only** (chatgpt, claude, kimi, qwen): respond:
-  > "**\<Name\>** selected."
-  >
-  > You haven't logged in yet. Run `/advisor.setup` to open a Chrome window and log into **\<Name\>**.
-  > Once logged in, run `/advisor.setup` again to confirm — then you're ready.
-
-- **For CLI-based advisors** (claude-code, codex, gemini): respond:
-  > "**\<Name\>** selected."
-  >
-  > No setup needed — CLI advisors run locally and use your existing credentials.
-  > Run `/advisor <your question>` to start immediately.
-
-- **For HTTP advisors** (openrouter): respond:
-  > "**\<Name\>** selected."
-  >
-  > Make sure `OPENROUTER_API_KEY` is set in your environment, or that `{HOST_DIR}advisor-openrouter.json` contains your key + model. Run `/advisor.setup` to configure, or `/advisor <question>` to start.

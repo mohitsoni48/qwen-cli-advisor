@@ -78,25 +78,49 @@ Then stop.
 
 ---
 
+### 2b. Custom HTTP advisors — verify config
+
+For `custom-http` (or any `custom-*` advisor): read `{HOST_DIR}settings.json` (or `~/.qwen/settings.json`) and check that `customAdvisors` contains an entry with matching `id`.
+
+Use `filesystem.read_file` to read `~/.qwen/settings.json`.
+
+Parse the JSON and check for `settings.customAdvisors` array with an entry whose `id` matches the advisor name (stripped of `custom-` prefix).
+
+**If found:** write `{HOST_DIR}advisor-ready-{ADVISOR_NAME}` with content `ready` and respond:
+
+> **\<ADVISOR_NAME\>** is ready.
+>
+> HTTP advisor configured in `settings.json` — uses your API key.
+> Run `/advisor <your question>` to start.
+
+**If not found:** respond:
+
+> "**\<ADVISOR_NAME\>** is not configured."
+>
+> Add it to `settings.json` under the `customAdvisors` array with these fields:
+> - `id` — lookup key (e.g. `nvidia-deepseek`)
+> - `name` — display name
+> - `baseUrl` — e.g. `https://integrate.api.nvidia.com/v1`
+> - `envKey` — reference to a key in `settings.json.env` (e.g. `NVAPI_KEY`)
+> - `model` — model name
+> - `generationConfig` (optional) — `temperature`, `top_p`, `extra_body`, `contextWindowSize`
+>
+> Then run `/advisor.setup` again.
+
+Then stop.
+
+---
+
 ### 4. Web-based advisors — browser login
 
 For chatgpt, claude, kimi, qwen:
 
-#### Ensure runner script is available
+#### Check runner script exists
 
-Check if `{HOST_DIR}advisor-runner.js` exists using `filesystem.read_file`.
+Check if `{HOST_DIR}advisor.py` exists using `filesystem.read_file`.
 
-**If missing**, look for it in the extension directory. Try these locations in order:
-1. `{HOST_DIR}extensions/advisor/advisor-runner.js`
-2. `{HOST_DIR}extensions/advisor-extension/advisor-runner.js`
-
-If found in an extension directory, copy it to `{HOST_DIR}advisor-runner.js` using:
-```
-Bash(node -e "require('fs').copyFileSync('<source>', '<dest>')")
-```
-
-If not found anywhere, respond:
-> "The advisor runner script is missing. Run `node install.mjs` from the advisor repo to complete setup."
+**If missing**, respond:
+> "The advisor runner script is missing. Run `node install.mjs --ai <host>` from the advisor repo to complete setup."
 
 Then stop.
 

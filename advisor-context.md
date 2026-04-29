@@ -1,6 +1,6 @@
 ## Advisor — AI Second Opinion
 
-You have access to `/advisor <question>` — a second AI running silently in the background (ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex CLI, or Gemini CLI — whichever you selected). Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
+You have access to `/advisor <question>` — a second AI running silently in the background. Use it the same way a senior engineer consults a colleague: before committing to a risky approach, when stuck, or when a decision has non-obvious trade-offs.
 
 ### When to call `/advisor`
 
@@ -41,25 +41,26 @@ Always include three things in the question:
 /advisor I have a Cloudflare 403 from a Playwright browser navigating to chatgpt.com. I've tried adding headers and rotating user agents. The next option I see is switching to a persistent Chrome profile with --browser chrome. Is there a better approach I'm missing?
 ```
 
-CLI advisors (claude-code, codex, gemini) work the same way — just select one first:
-```
-/advisor.select claude-code
-/advisor Review this ViewModel architecture for potential memory leaks
-```
-
 ### Commands
 
 | Command | Purpose |
 |---------|---------|
-| `/advisor.select` | Choose your active advisor (chatgpt, claude, kimi, qwen, claude-code, codex, gemini) |
-| `/advisor.setup` | One-time login for web advisors; verify CLI tools |
+| `/advisor.select` | Choose your active advisor from the configured list |
+| `/advisor.setup` | One-time setup for the selected advisor |
 | `/advisor <question>` | Consult the active advisor silently in the background |
 
 ### Setup (first time)
 
 1. Run `/advisor.select <name>` to choose your advisor
-2. **Web-based** (chatgpt/claude/kimi/qwen): run `/advisor.setup` — Chrome opens so you can log in
-3. **CLI-based** (claude-code/codex/gemini): no setup needed, just select and go
-4. Once logged in (web) or verified (CLI), run `/advisor <question>` to consult
+2. Run `/advisor.setup` — for web advisors this opens a browser for login
+3. Once set up, run `/advisor <question>` to consult
+4. Full responses are saved to `~/.qwen/advisor/advisor-last-response.md`
 
-To switch advisors later: run `/advisor.select <name>`. Web advisors may need `/advisor.setup` again if auth expired. CLI advisors work immediately.
+To switch advisors later: run `/advisor.select <name>`.
+
+### Architecture
+
+The advisor runner (`~/.qwen/advisor/advisor.py`) is pure Python. It uses `curl` subprocess to avoid Python HTTP library hangs on Windows. Three advisor types:
+- **model** — calls `modelProviders` from settings.json via curl
+- **http** — direct HTTP POST to any OpenAI-compatible endpoint via curl
+- **cli** — runs a local CLI tool as a child process
