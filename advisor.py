@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
-"""Advisor runner — pure Python. Reads settings.json, dispatches via curl subprocess."""
+"""Advisor runner — pure Python. Reads settings.json, dispatches via curl subprocess.
+Works on Windows, macOS, and Linux."""
 
 import json
 import os
 import sys
 import subprocess
-import time
-import shlex
 
 SETTINGS_PATH = os.path.expanduser('~/.qwen/settings.json')
 HOST_DIR = os.environ.get('ADVISOR_HOST_DIR', os.path.expanduser('~/.qwen/advisor'))
 RESPONSE_FILE = os.path.join(HOST_DIR, 'advisor-last-response.md')
 TIMEOUT = 180
+
+
+def ensure_host_dir():
+    """Create HOST_DIR if it doesn't exist."""
+    try:
+        os.makedirs(HOST_DIR, exist_ok=True)
+    except OSError:
+        pass
 
 
 def load_advisors():
@@ -40,51 +47,41 @@ def http_post(base_url, api_key, body, timeout):
         url = f'{url}/chat/completions'
     payload = json.dumps(body).encode('utf-8')
 
-    # Write payload to temp file to avoid Windows shell quoting issues
-    tmp_path = os.path.join(HOST_DIR, '.nv_payload.tmp')
+    # Pipe JSON to curl via stdin — works on all platforms (Win/Mac/Linux)
+    cmd = [
+        'curl', '-s', '--max-time', str(timeout),
+        url,
+        '-H', 'Content-Type: application/json',
+        '-H', f'Authorization: Bearer {api_key}',
+        '--data-binary', '@-',
+    ]
     try:
-        with open(tmp_path, 'wb') as f:
-            f.write(payload)
+        proc = subprocess.run(cmd, capture_output=True, input=payload, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return None, f'curl timed out after {timeout}s'
 
-        cmd = [
-            'curl', '-s', '--max-time', str(timeout),
-            url,
-            '-H', 'Content-Type: application/json',
-            '-H', f'Authorization: Bearer {api_key}',
-            '-d', f'@{tmp_path}',
-        ]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=False, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            return None, f'curl timed out after {timeout}s'
+    if proc.returncode != 0:
+        return None, f'curl exit {proc.returncode}: {proc.stderr.decode("utf-8", errors="replace").strip()[:300]}'
 
-        if proc.returncode != 0:
-            return None, f'curl exit {proc.returncode}: {proc.stderr.decode("utf-8", errors="replace").strip()[:300]}'
-
-        stdout_str = proc.stdout.decode('utf-8', errors='replace')
-        try:
-            data = json.loads(stdout_str)
-            # OpenAI-compatible: choices[0].message.content
-            # Ollama OpenAI-compatible: message.content
-            content = (data.get('choices', [{}])[0].get('message', {}).get('content') or '').strip()
-            if not content:
-                content = (data.get('message', {}).get('content') or '').strip()
-            data['_content'] = content  # normalized content for callers
-            if not content:
-                status = data.get('status')
-                title = data.get('title')
-                detail = data.get('detail')
-                if status and status in (403, 401):
-                    return None, f'HTTP {status}: {title} — {detail}'
-                return None, f'Empty content in response. Full: {stdout_str[:500]}'
-            return data, None
-        except json.JSONDecodeError as e:
-            return None, f'JSON parse error: {e}. stdout={len(proc.stdout)} bytes. Body: {stdout_str[:300]}'
-    finally:
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
+    stdout_str = proc.stdout.decode('utf-8', errors='replace')
+    try:
+        data = json.loads(stdout_str)
+        # OpenAI-compatible: choices[0].message.content
+        # Ollama OpenAI-compatible: message.content
+        content = (data.get('choices', [{}])[0].get('message', {}).get('content') or '').strip()
+        if not content:
+            content = (data.get('message', {}).get('content') or '').strip()
+        data['_content'] = content  # normalized content for callers
+        if not content:
+            status = data.get('status')
+            title = data.get('title')
+            detail = data.get('detail')
+            if status and status in (403, 401):
+                return None, f'HTTP {status}: {title} — {detail}'
+            return None, f'Empty content in response. Full: {stdout_str[:500]}'
+        return data, None
+    except json.JSONDecodeError as e:
+        return None, f'JSON parse error: {e}. stdout={len(proc.stdout)} bytes. Body: {stdout_str[:300]}'
 
 
 def run_model(advisor, settings, question):
@@ -198,14 +195,27 @@ def emit_response(response, advisor):
 
 
 def main():
-    if len(sys.argv) < 3:
-        advisors, _ = load_advisors()
-        names = ', '.join(a['id'] for a in advisors)
-        print(f'Usage: python advisor.py <advisor-id> "<question>"\nAvailable: {names}', file=sys.stderr)
+    if len(sys.argv) < 2:
+        print(f'Usage: python advisor.py [advisor-id] "<question>"\nRun /advisor.select first to choose one.', file=sys.stderr)
         sys.exit(1)
 
-    advisor_id = sys.argv[1]
-    question = ' '.join(sys.argv[2:])
+    ensure_host_dir()
+
+    if len(sys.argv) == 2:
+        # No advisor ID — read from advisor-active
+        active_file = os.path.join(HOST_DIR, 'advisor-active')
+        try:
+            advisor_id = open(active_file, 'r', encoding='utf-8').read().strip()
+        except FileNotFoundError:
+            print(f'ERROR: {active_file} not found. Run /advisor.select first.', file=sys.stderr)
+            sys.exit(1)
+        if not advisor_id:
+            print(f'ERROR: {active_file} is empty. Run /advisor.select first.', file=sys.stderr)
+            sys.exit(1)
+        question = sys.argv[1]
+    else:
+        advisor_id = sys.argv[1]
+        question = ' '.join(sys.argv[2:])
 
     advisors, settings = load_advisors()
     advisor = next((a for a in advisors if a['id'] == advisor_id), None)
