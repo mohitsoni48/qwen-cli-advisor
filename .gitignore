@@ -17,6 +17,10 @@
 # Node
 node_modules/
 
+# Python
+__pycache__/
+*.py[cod]
+
 # Qwen CLI config & commands
 .qwen/
 
@@ -25,4 +29,3 @@ node_modules/
 
 # OMC internal state
 .omc/
-
