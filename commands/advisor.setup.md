@@ -1,171 +1,70 @@
 ---
-description: One-time setup for the active advisor. Web-based advisors need a browser login; CLI advisors just verify the tool is installed and authenticated. Run /advisor.select first.
-handoffs:
-  - label: Start advising
-    agent: advisor
-    prompt: I am ready to use the advisor.
+description: One-time setup for the active advisor. Verifies config is correct. Run /advisor.select first.
 ---
 
 ## Goal
 
-Authenticate the currently-selected advisor and mark it as ready for use.
-
-## Advisor URLs (web-based only)
-
-| Name | URL | Login indicator |
-|------|-----|----------------|
-| chatgpt | https://chatgpt.com | "Log in" or "Sign up" |
-| claude | https://claude.ai | "Sign in" or "Log in" |
-| kimi | https://www.kimi.com | "Log in" or "Sign in" |
-| qwen | https://chat.qwen.ai | "Log in" or "Sign up" |
+Verify the currently-selected advisor is configured correctly and mark it as ready.
 
 ## Steps
 
-### 0. Resolve paths
-
-```
-HOST_DIR = {{HOST_DIR}}
-```
-
-Use it for all file operations below.
-
----
-
 ### 1. Read active advisor
 
-Use `filesystem.read_file` to read `{HOST_DIR}advisor-active`.
+Read `{HOST_DIR}advisor-active` and trim whitespace.
 
-- **If the file is missing or empty:** respond:
+- **If missing or empty:** respond:
   > "No advisor selected. Run `/advisor.select` first to choose one."
 
   Then stop.
 
-Let `ADVISOR_NAME` = the file contents (trimmed, lowercase). Let `ADVISOR_URL` = the URL from the table above (or null for CLI advisors).
+Let `ADVISOR_ID` = the file contents (trimmed).
 
 ---
 
 ### 2. Check if already set up
 
-Use `filesystem.read_file` to check if `{HOST_DIR}advisor-ready-{ADVISOR_NAME}` exists.
+Check if `{HOST_DIR}advisor-ready-{ADVISOR_ID}` exists.
 
 - **If it exists:** respond:
-  > "**\<ADVISOR_NAME\>** is already set up. Run `/advisor <question>` to start."
+  > "**{ADVISOR_ID}** is already set up. Run `/advisor <question>` to start."
 
   Then stop.
 
 ---
 
-### 3. CLI-based advisors — verify installation
+### 3. Look up advisor config
 
-For `claude-code`, `codex`, or `gemini`: no browser login needed. Just verify the tool works:
+Read `{HOST_DIR}../settings.json` (or `~/.qwen/settings.json`) and find the advisor entry matching `ADVISOR_ID` in the `advisors` array.
 
-Run `Bash(where claude)` (or `where codex` / `where gemini`). If found, write `{HOST_DIR}advisor-ready-{ADVISOR_NAME}` with content `ready` and respond:
+- **If not found:** respond:
+  > "Unknown advisor '{ADVISOR_ID}'. Available: {list of ids from settings.json}"
 
-> **\<ADVISOR_NAME\>** is ready.
->
-> No browser login needed — it uses your existing CLI credentials.
-> Run `/advisor <your question>` to start.
+  Then stop.
 
-If the tool is not found, respond:
-> "**\<ADVISOR_NAME\>** is not installed."
->
-> Install it first:
-> - Claude Code: `npm i -g @anthropic-ai/claude-code` (requires Anthropic subscription)
-> - Codex CLI: `npm i -g @openai/codex` (requires OpenAI API key)
-> - Gemini CLI: `npm i -g @google/gemini-cli` (requires Google account)
-
-Then stop.
+Let `ADVISOR_TYPE` = the advisor's `type` field (model, http, or cli).
 
 ---
 
-### 4. Web-based advisors — browser login
+### 4. Verify config by type
 
-For chatgpt, claude, kimi, qwen:
+**model:** Check that `modelProviders` contains an entry matching `advisor.id`. If found, proceed to step 5.
 
-#### Ensure runner script is available
+**http:** Check that `envKey` has a corresponding key in `settings.json.env`. If the key is missing or empty, respond:
+  > "API key missing. Set {envKey} in settings.json.env"
 
-Check if `{HOST_DIR}advisor-runner.js` exists using `filesystem.read_file`.
-
-**If missing**, look for it in the extension directory. Try these locations in order:
-1. `{HOST_DIR}extensions/advisor/advisor-runner.js`
-2. `{HOST_DIR}extensions/advisor-extension/advisor-runner.js`
-
-If found in an extension directory, copy it to `{HOST_DIR}advisor-runner.js` using:
-```
-Bash(node -e "require('fs').copyFileSync('<source>', '<dest>')")
-```
-
-If not found anywhere, respond:
-> "The advisor runner script is missing. Run `node install.mjs` from the advisor repo to complete setup."
-
-Then stop.
+**cli:** Check that the `bin` field (e.g. "claude") is installed on PATH. Run `Bash(where <bin>)` or `Bash(command -v <bin>)`. If not found, respond with install instructions.
 
 ---
 
-### 5. Navigate to advisor login page
+### 5. Save setup flag
 
-Use the browser tool to navigate to `ADVISOR_URL`.
-
-Take a snapshot of the page.
+Write `ready` to `{HOST_DIR}advisor-ready-{ADVISOR_ID}`.
 
 ---
 
-### 6. Detect login state
-
-Inspect the snapshot for login indicators: "Log in", "Sign in", "Sign up", "Get started", "Continue with Google".
-
-#### Not logged in — show instructions:
-
-> **Advisor Setup — Action Required**
->
-> A Chrome window has opened for **\<ADVISOR_NAME\>** (check your Windows taskbar).
->
-> To complete setup:
-> 1. Click the Chrome icon in your taskbar to bring it to the front
-> 2. Log into **\<ADVISOR_NAME\>** with your account
-> 3. Once you see the chat interface, come back and run `/advisor.setup` again
->
-> This is a one-time step — the session is saved permanently.
-
-Then stop.
-
-#### Logged in — continue to Step 7.
-
----
-
-### 7. Save setup flag
-
-Use `filesystem.write_file` to write `ready` to:
-
-```
-{HOST_DIR}advisor-ready-{ADVISOR_NAME}
-```
-
----
-
-### 8. Inject advisor guidance into QWEN.md (first setup only)
-
-Use `filesystem.read_file` to read `{HOST_DIR}QWEN.md`.
-
-Search for `## Advisor` in the content.
-
-- **If found:** skip this step (already injected).
-- **If not found:**
-  1. Read `{HOST_DIR}advisor-context.md`
-  2. Append its contents to QWEN.md with a blank line separator before it
-  3. Also append these rows to the Slash Commands table in QWEN.md:
-     ```
-     | `/advisor.select` | Choose your active AI advisor (ChatGPT, Claude, Kimi, Qwen, Claude Code, Codex CLI, Gemini CLI) |
-     | `/advisor.setup` | One-time login for web advisors; verify CLI tools |
-     | `/advisor <question>` | Get a second opinion from your active advisor |
-     ```
-
----
-
-### 9. Confirm
+### 6. Confirm
 
 Respond:
 
-> **\<ADVISOR_NAME\>** Setup Complete
->
-> \<ADVISOR_NAME\> is ready to use. Run `/advisor <your question>` to start.
+> **{ADVISOR_ID}** is ready.
+> Run `/advisor <question>` to start.

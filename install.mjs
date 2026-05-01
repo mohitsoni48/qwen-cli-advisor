@@ -10,7 +10,7 @@
  *
  * Each host gets:
  *   - /advisor, /advisor.select, /advisor.setup commands rendered for its dir layout
- *   - advisor-runner.js (with HOST_DIR baked in) + advisor-context.md
+ *   - advisor.py (pure Python, uses curl subprocess) + advisor-context.md
  *   - Per-host context file: QWEN.md / CLAUDE.md / GEMINI.md / AGENTS.md
  *
  * Optional Qwen-only extras: MCP servers wired into ~/.qwen/settings.json
@@ -36,11 +36,13 @@ const HOME = homedir();
 const HOSTS = {
   qwen: {
     label:        'Qwen CLI',
-    dir:          join(HOME, '.qwen'),
+    dir:          join(HOME, '.qwen', 'advisor'),
     commandsDir:  'commands',
     contextFile:  'QWEN.md',
     extInstall:   'qwen extensions install .',
-    settingsFile: 'settings.json', // OpenAI-compat JSON config we wire MCPs into
+    settingsFile: '../settings.json', // settings.json stays at ~/.qwen/
+    // advisor.py and advisor-active live in ~/.qwen/advisor/
+    advisorDir:   join(HOME, '.qwen', 'advisor'),
   },
   claude: {
     label:        'Claude Code',
@@ -180,6 +182,7 @@ async function installForHost(hostName, host, opts) {
   const vars = {
     HOST_DIR:     host.dir + (host.dir.endsWith('/') || host.dir.endsWith('\\') ? '' : '/'),
     CONTEXT_FILE: host.contextFile,
+    QWEN_DIR:     join(HOME, '.qwen'),
   };
 
   for (const file of ['advisor.md', 'advisor.select.md', 'advisor.setup.md']) {
@@ -188,28 +191,52 @@ async function installForHost(hostName, host, opts) {
     ok(`commands/${file}`);
   }
 
-  // advisor-runner.js needs no rendering — it derives HOST_DIR from __dirname at runtime.
-  const runnerSrc = readFileSync(join(__dirname, 'advisor-runner.js'), 'utf8');
-  writeFileSync(join(host.dir, 'advisor-runner.js'), runnerSrc);
-  ok('advisor-runner.js');
+  // advisor.py — pure Python runner, deployed to host dir
+  const pySrc = readFileSync(join(__dirname, 'advisor.py'), 'utf8');
+  writeFileSync(join(host.dir, 'advisor.py'), pySrc);
+  ok('advisor.py');
 
+  // advisor-active — tracks current advisor id (user must set via /advisor.select)
+  ok('advisor-active (create via /advisor.select)');
+
+  // advisor-last-response.md — output file
+  ok('advisor-last-response.md (created on first run)');
+
+  // advisor-context.md — context for Qwen
   const ctxSrc = readFileSync(join(__dirname, 'advisor-context.md'), 'utf8');
   writeFileSync(join(host.dir, 'advisor-context.md'), ctxSrc);
   ok('advisor-context.md');
 
-  // Context file (CLAUDE.md / QWEN.md / AGENTS.md / etc.)
+  // Context file (CLAUDE.md / AGENTS.md / GEMINI.md — QWEN.md deployed below)
   const ctxPath = join(host.dir, host.contextFile);
   const tmplSrc = readFileSync(join(__dirname, 'templates', 'CONTEXT.md'), 'utf8');
-  if (!existsSync(ctxPath)) {
-    writeFileSync(ctxPath, renderTemplate(tmplSrc, vars));
-    ok(`${host.contextFile} written from template`);
-  } else {
-    const existing = readFileSync(ctxPath, 'utf8');
-    if (!existing.includes('## Advisor')) {
-      writeFileSync(ctxPath, existing + '\n\n---\n\n' + ctxSrc);
-      ok(`${host.contextFile}: appended Advisor section`);
+  if (hostName === 'qwen') {
+    // QWEN.md stays at ~/.qwen/ (not inside advisor/)
+    const qwenPath = join(HOME, '.qwen', 'QWEN.md');
+    if (!existsSync(qwenPath)) {
+      writeFileSync(qwenPath, renderTemplate(tmplSrc, vars));
+      ok(`QWEN.md written from template`);
     } else {
-      ok(`${host.contextFile}: Advisor section already present`);
+      const existing = readFileSync(qwenPath, 'utf8');
+      if (!existing.includes('## Advisor')) {
+        writeFileSync(qwenPath, existing + '\n\n---\n\n' + ctxSrc);
+        ok('QWEN.md: appended Advisor section');
+      } else {
+        ok('QWEN.md: Advisor section already present');
+      }
+    }
+  } else {
+    if (!existsSync(ctxPath)) {
+      writeFileSync(ctxPath, renderTemplate(tmplSrc, vars));
+      ok(`${host.contextFile} written from template`);
+    } else {
+      const existing = readFileSync(ctxPath, 'utf8');
+      if (!existing.includes('## Advisor')) {
+        writeFileSync(ctxPath, existing + '\n\n---\n\n' + ctxSrc);
+        ok(`${host.contextFile}: appended Advisor section`);
+      } else {
+        ok(`${host.contextFile}: Advisor section already present`);
+      }
     }
   }
 
@@ -369,8 +396,8 @@ async function main() {
   log();
   log('Next steps:');
   log('  1. Restart your CLI host');
-  log('  2. /advisor.select <name>   ← chatgpt, claude, kimi, qwen, claude-code, codex, gemini, openrouter');
-  log('  3. /advisor.setup            ← web advisors only (browser login)');
+  log('  2. /advisor.select <id>      ← set your active advisor');
+  log('  3. /advisor.setup            ← verify config');
   log('  4. /advisor <your question>  ← ready');
   log();
 }
